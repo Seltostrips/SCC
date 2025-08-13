@@ -1,7 +1,24 @@
-// Admin index page 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { CSVLink } from 'react-csv';
+
+// Custom CSV export function
+const exportToCSV = (data, filename) => {
+  const headers = Object.keys(data[0] || {});
+  const csvContent = [
+    headers.join(','),
+    ...data.map(row => headers.map(header => `"${row[header]}"`).join(','))
+  ].join('\n');
+  
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
 
 export default function AdminDashboard() {
   const [entries, setEntries] = useState([]);
@@ -67,17 +84,21 @@ export default function AdminDashboard() {
     }, 100);
   };
 
-  const csvData = entries.map(entry => ({
-    binId: entry.binId,
-    bookQuantity: entry.bookQuantity,
-    actualQuantity: entry.actualQuantity,
-    staff: entry.staffId.name,
-    status: entry.status,
-    clientResponse: entry.clientResponse?.action || 'N/A',
-    timeToApprove: entry.timestamps.clientResponse && entry.timestamps.staffEntry
-      ? `${Math.round((entry.timestamps.clientResponse - entry.timestamps.staffEntry) / 60000)} mins`
-      : 'N/A'
-  }));
+  const handleExport = () => {
+    const csvData = entries.map(entry => ({
+      binId: entry.binId,
+      bookQuantity: entry.bookQuantity,
+      actualQuantity: entry.actualQuantity,
+      staff: entry.staffId.name,
+      status: entry.status,
+      clientResponse: entry.clientResponse?.action || 'N/A',
+      timeToApprove: entry.timestamps.clientResponse && entry.timestamps.staffEntry
+        ? `${Math.round((entry.timestamps.clientResponse - entry.timestamps.staffEntry) / 60000)} mins`
+        : 'N/A'
+    }));
+    
+    exportToCSV(csvData, 'inventory_audit_report.csv');
+  };
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -154,13 +175,12 @@ export default function AdminDashboard() {
               Reset Filters
             </button>
             
-            <CSVLink
-              data={csvData}
-              filename="inventory_audit_report.csv"
+            <button
+              onClick={handleExport}
               className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
             >
               Export to Excel
-            </CSVLink>
+            </button>
           </div>
         </div>
         
