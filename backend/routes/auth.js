@@ -107,7 +107,8 @@ router.get('/me', checkDBConnection, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    res.json(user);
+    // Return the user object in the expected format
+    res.json({ user });
   } catch (err) {
     console.error(err.message);
     res.status(401).json({ message: 'Token is not valid' });
@@ -115,3 +116,4 @@ router.get('/me', checkDBConnection, async (req, res) => {
 });
 
 module.exports = router;
+
