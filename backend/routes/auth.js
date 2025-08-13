@@ -1,12 +1,20 @@
-// Auth routes 
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 
+// Middleware to check MongoDB connection
+const checkDBConnection = (req, res, next) => {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({ message: 'Database connection not established. Please try again later.' });
+  }
+  next();
+};
+
 // Register
-router.post('/register', async (req, res) => {
+router.post('/register', checkDBConnection, async (req, res) => {
   const { name, email, password, role, phone } = req.body;
   
   try {
@@ -49,7 +57,7 @@ router.post('/register', async (req, res) => {
 });
 
 // Login
-router.post('/login', async (req, res) => {
+router.post('/login', checkDBConnection, async (req, res) => {
   const { email, password } = req.body;
   
   try {
