@@ -14,6 +14,7 @@ export default async function handler(req, res) {
       }
     });
     
+    // Forward the response from the backend
     res.status(200).json(response.data);
   } catch (error) {
     console.error('Auth me error:', error.response?.data);
