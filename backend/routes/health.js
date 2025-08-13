@@ -5,11 +5,18 @@ const mongoose = require('mongoose');
 router.get('/', async (req, res) => {
   try {
     // Check MongoDB connection
-    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    const dbStatus = mongoose.connection.readyState;
+    const statusText = {
+      0: 'disconnected',
+      1: 'connected',
+      2: 'connecting',
+      3: 'disconnecting'
+    };
     
     res.json({
       status: 'ok',
-      database: dbStatus,
+      database: statusText[dbStatus],
+      readyState: dbStatus,
       timestamp: new Date()
     });
   } catch (error) {
