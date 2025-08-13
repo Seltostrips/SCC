@@ -21,8 +21,10 @@ function MyApp({ Component, pageProps }) {
         }
       })
       .then(res => {
-        console.log('Auth successful:', res.data);
-        setUser(res.data.user);
+        console.log("Auth successful:", res.data);
+        // Handle both response structures: { user: ... } and direct user object
+        const userData = res.data.user || res.data;
+        setUser(userData);
         setAuthError(null);
         setLoading(false);
         
@@ -32,19 +34,19 @@ function MyApp({ Component, pageProps }) {
             socket = ioModule.default(process.env.NEXT_PUBLIC_API_URL);
             
             // Join role-based room
-            socket.emit('join-room', res.data.user.role);
+            socket.emit('join-room', userData.role);
             
             // Listen for new pending entries (for clients)
-            if (res.data.user.role === 'client') {
+            if (userData.role === 'client') {
               socket.on('new-pending-entry', (entry) => {
                 alert('New inventory entry requires your review!');
               });
             }
             
             // Listen for entry updates (for staff)
-            if (res.data.user.role === 'staff') {
+            if (userData.role === 'staff') {
               socket.on('entry-updated', (entry) => {
-                if (entry.status === 'recount-required' && entry.staffId === res.data.user.id) {
+                if (entry.status === 'recount-required' && entry.staffId === userData.id) {
                   alert('Recount required for one of your entries!');
                 }
               });
