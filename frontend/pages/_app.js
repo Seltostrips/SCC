@@ -12,70 +12,62 @@ function MyApp({ Component, pageProps }) {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    
-    if (token) {
-      axios.get('/api/auth/me', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
-      .then(res => {
-        console.log("Auth successful:", res.data);
-        // Handle both response structures: { user: ... } and direct user object
-        const userData = res.data.user || res.data;
-        setUser(userData);
-        setAuthError(null);
-        setLoading(false);
-        
-        // Initialize socket connection
-        if (typeof window !== 'undefined') {
-          import('socket.io-client').then((ioModule) => {
-            socket = ioModule.default(process.env.NEXT_PUBLIC_API_URL);
-            
-            // Join role-based room
-            socket.emit('join-room', userData.role);
-            
-            // Listen for new pending entries (for clients)
-            if (userData.role === 'client') {
-              socket.on('new-pending-entry', (entry) => {
-                alert('New inventory entry requires your review!');
-              });
-            }
-            
-            // Listen for entry updates (for staff)
-            if (userData.role === 'staff') {
-              socket.on('entry-updated', (entry) => {
-                if (entry.status === 'recount-required' && entry.staffId === userData.id) {
-                  alert('Recount required for one of your entries!');
-                }
-              });
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      
+      if (token) {
+        try {
+          const res = await axios.get('/api/auth/me', {
+            headers: {
+              Authorization: `Bearer ${token}`
             }
           });
+          
+          console.log("Auth successful:", res.data);
+          // Handle both response structures: { user: ... } and direct user object
+          const userData = res.data.user || res.data;
+          setUser(userData);
+          setAuthError(null);
+          
+          // Initialize socket connection
+          if (typeof window !== 'undefined') {
+            import('socket.io-client').then((ioModule) => {
+              socket = ioModule.default(process.env.NEXT_PUBLIC_API_URL);
+              
+              // Join role-based room
+              socket.emit('join-room', userData.role);
+              
+              // Listen for new pending entries (for clients)
+              if (userData.role === 'client') {
+                socket.on('new-pending-entry', (entry) => {
+                  alert('New inventory entry requires your review!');
+                });
+              }
+              
+              // Listen for entry updates (for staff)
+              if (userData.role === 'staff') {
+                socket.on('entry-updated', (entry) => {
+                  if (entry.status === 'recount-required' && entry.staffId === userData.id) {
+                    alert('Recount required for one of your entries!');
+                  }
+                });
+              }
+            });
+          }
+        } catch (err) {
+          console.error('Auth error:', err.response?.data);
+          setAuthError(err.response?.data?.message || 'Authentication failed');
+          localStorage.removeItem('token');
+          setUser(null);
         }
-      })
-      .catch(err => {
-        console.error('Auth error:', err.response?.data);
-        setAuthError(err.response?.data?.message || 'Authentication failed');
-        localStorage.removeItem('token');
+      } else {
         setUser(null);
-        setLoading(false);
-        
-        // Only redirect to login if not already there
-        if (router.pathname !== '/login' && router.pathname !== '/register') {
-          router.push('/login');
-        }
-      });
-    } else {
-      setUser(null);
-      setAuthError('No token found');
-      setLoading(false);
-      
-      // Only redirect to login if not already there
-      if (router.pathname !== '/login' && router.pathname !== '/register') {
-        router.push('/login');
       }
-    }
+      
+      setLoading(false);
+    };
+
+    checkAuth();
   }, [router.pathname]);
 
   const logout = () => {
@@ -84,6 +76,9 @@ function MyApp({ Component, pageProps }) {
     if (socket) socket.disconnect();
     router.push('/login');
   };
+
+  // Don't show navbar on login and register pages
+  const showNavbar = user && router.pathname !== '/login' && router.pathname !== '/register';
 
   // Show loading spinner while checking authentication
   if (loading) {
@@ -96,9 +91,6 @@ function MyApp({ Component, pageProps }) {
       </div>
     );
   }
-
-  // Don't show navbar on login and register pages
-  const showNavbar = user && router.pathname !== '/login' && router.pathname !== '/register';
 
   return (
     <div>
