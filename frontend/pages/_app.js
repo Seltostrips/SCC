@@ -1,4 +1,3 @@
-// pages/_app.js
 import '../styles/globals.css';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
@@ -9,10 +8,12 @@ let socket;
 function MyApp({ Component, pageProps }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
     const token = localStorage.getItem('token');
+    
     if (token) {
       axios.get('/api/auth/me', {
         headers: {
@@ -20,14 +21,15 @@ function MyApp({ Component, pageProps }) {
         }
       })
       .then(res => {
+        console.log('Auth successful:', res.data);
         setUser(res.data.user);
+        setAuthError(null);
         setLoading(false);
         
-        // Initialize socket connection only if window is defined (client-side)
+        // Initialize socket connection
         if (typeof window !== 'undefined') {
-          // Dynamically import socket.io-client only on client side
-          import('socket.io-client').then((io) => {
-            socket = io.default(process.env.NEXT_PUBLIC_API_URL);
+          import('socket.io-client').then((ioModule) => {
+            socket = ioModule.default(process.env.NEXT_PUBLIC_API_URL);
             
             // Join role-based room
             socket.emit('join-room', res.data.user.role);
@@ -51,17 +53,28 @@ function MyApp({ Component, pageProps }) {
         }
       })
       .catch(err => {
+        console.error('Auth error:', err.response?.data);
+        setAuthError(err.response?.data?.message || 'Authentication failed');
         localStorage.removeItem('token');
+        setUser(null);
         setLoading(false);
-        router.push('/login');
+        
+        // Only redirect to login if not already there
+        if (router.pathname !== '/login' && router.pathname !== '/register') {
+          router.push('/login');
+        }
       });
     } else {
+      setUser(null);
+      setAuthError('No token found');
       setLoading(false);
+      
+      // Only redirect to login if not already there
       if (router.pathname !== '/login' && router.pathname !== '/register') {
         router.push('/login');
       }
     }
-  }, [router]);
+  }, [router.pathname]);
 
   const logout = () => {
     localStorage.removeItem('token');
@@ -70,13 +83,24 @@ function MyApp({ Component, pageProps }) {
     router.push('/login');
   };
 
+  // Show loading spinner while checking authentication
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mx-auto"></div>
+          <p className="mt-4">Loading...</p>
+        </div>
+      </div>
+    );
   }
+
+  // Don't show navbar on login and register pages
+  const showNavbar = user && router.pathname !== '/login' && router.pathname !== '/register';
 
   return (
     <div>
-      {user && (
+      {showNavbar && (
         <nav className="bg-gray-800 text-white p-4">
           <div className="container mx-auto flex justify-between">
             <div>Inventory Audit Control Portal</div>
@@ -89,6 +113,14 @@ function MyApp({ Component, pageProps }) {
           </div>
         </nav>
       )}
+      
+      {authError && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <strong className="font-bold">Authentication Error: </strong>
+          <span className="block sm:inline">{authError}</span>
+        </div>
+      )}
+      
       <Component {...pageProps} user={user} setUser={setUser} />
     </div>
   );
