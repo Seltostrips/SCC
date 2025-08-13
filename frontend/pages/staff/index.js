@@ -1,8 +1,8 @@
-// Staff index page 
 import { useState } from 'react';
 import axios from 'axios';
+import withAuth from '../../components/withAuth';
 
-export default function StaffDashboard() {
+function StaffDashboard({ user }) {
   const [formData, setFormData] = useState({
     binId: '',
     bookQuantity: '',
@@ -48,7 +48,8 @@ export default function StaffDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow">
-        <h2 className="text-2xl font-bold mb-6 text-center">Inventory Entry Form</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center">Staff Dashboard</h2>
+        <p className="text-center mb-6">Welcome, {user.name}</p>
         
         {message && (
           <div className={`mb-4 p-3 rounded ${message.includes('auto-approved') ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -131,3 +132,5 @@ export default function StaffDashboard() {
     </div>
   );
 }
+
+export default withAuth(StaffDashboard, 'staff');
