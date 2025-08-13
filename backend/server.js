@@ -4,6 +4,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const http = require('http');
 const socketIo = require('socket.io');
+const connectDB = require('./utils/db');
 
 // Load environment variables
 dotenv.config();
@@ -17,10 +18,7 @@ const io = socketIo(server, {
   }
 });
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
+// Connect to MongoDB
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
@@ -37,13 +35,35 @@ mongoose.connect(process.env.MONGO_URI, {
   // Don't exit the process, just log the error
 });
 
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Basic route for testing
+app.get('/', (req, res) => {
+  res.send('Inventory Audit Control Portal API is running');
+});
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/inventory', require('./routes/inventory'));
 
 // Socket.io setup
-require('./utils/socket')(io);
+io.on('connection', (socket) => {
+  console.log('New client connected');
+  
+  // Join role-based rooms
+  socket.on('join-room', (role) => {
+    socket.join(role);
+  });
+  
+  socket.on('disconnect', () => {
+    console.log('Client disconnected');
+  });
+});
+
+// Make io accessible to routes
+app.set('io', io);
 
 const PORT = process.env.PORT || 5000;
-
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
