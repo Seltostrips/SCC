@@ -11,6 +11,7 @@ function StaffDashboard({ user }) {
     location: ''
   });
   const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { binId, bookQuantity, actualQuantity, notes, location } = formData;
 
@@ -18,13 +19,20 @@ function StaffDashboard({ user }) {
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setMessage('');
+    
     try {
       const token = localStorage.getItem('token');
+      console.log('Submitting form with data:', formData);
+      
       const res = await axios.post('/api/inventory', formData, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
+      
+      console.log('Response:', res.data);
       
       if (res.data.status === 'auto-approved') {
         setMessage('Entry auto-approved!');
@@ -41,7 +49,10 @@ function StaffDashboard({ user }) {
         location: ''
       });
     } catch (err) {
+      console.error('Error submitting entry:', err);
       setMessage(err.response?.data?.message || 'Error submitting entry');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -123,9 +134,10 @@ function StaffDashboard({ user }) {
           
           <button
             type="submit"
-            className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            disabled={isSubmitting}
+            className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
           >
-            Submit
+            {isSubmitting ? 'Submitting...' : 'Submit'}
           </button>
         </form>
       </div>
