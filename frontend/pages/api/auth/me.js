@@ -1,4 +1,3 @@
-// Me endpoint 
 import axios from 'axios';
 
 export default async function handler(req, res) {
@@ -17,6 +16,9 @@ export default async function handler(req, res) {
     
     res.status(200).json(response.data);
   } catch (error) {
-    res.status(401).json({ message: 'Not authorized' });
+    console.error('Auth me error:', error.response?.data);
+    res.status(401).json({ 
+      message: error.response?.data?.message || 'Not authorized' 
+    });
   }
 }
