@@ -1,9 +1,8 @@
-// App entry 
+// pages/_app.js
 import '../styles/globals.css';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
-import io from 'socket.io-client';
 
 let socket;
 
@@ -24,24 +23,29 @@ function MyApp({ Component, pageProps }) {
         setUser(res.data.user);
         setLoading(false);
         
-        // Initialize socket connection
-        socket = io(process.env.NEXT_PUBLIC_API_URL);
-        
-        // Join role-based room
-        socket.emit('join-room', res.data.user.role);
-        
-        // Listen for new pending entries (for clients)
-        if (res.data.user.role === 'client') {
-          socket.on('new-pending-entry', (entry) => {
-            alert('New inventory entry requires your review!');
-          });
-        }
-        
-        // Listen for entry updates (for staff)
-        if (res.data.user.role === 'staff') {
-          socket.on('entry-updated', (entry) => {
-            if (entry.status === 'recount-required' && entry.staffId === res.data.user.id) {
-              alert('Recount required for one of your entries!');
+        // Initialize socket connection only if window is defined (client-side)
+        if (typeof window !== 'undefined') {
+          // Dynamically import socket.io-client only on client side
+          import('socket.io-client').then((io) => {
+            socket = io.default(process.env.NEXT_PUBLIC_API_URL);
+            
+            // Join role-based room
+            socket.emit('join-room', res.data.user.role);
+            
+            // Listen for new pending entries (for clients)
+            if (res.data.user.role === 'client') {
+              socket.on('new-pending-entry', (entry) => {
+                alert('New inventory entry requires your review!');
+              });
+            }
+            
+            // Listen for entry updates (for staff)
+            if (res.data.user.role === 'staff') {
+              socket.on('entry-updated', (entry) => {
+                if (entry.status === 'recount-required' && entry.staffId === res.data.user.id) {
+                  alert('Recount required for one of your entries!');
+                }
+              });
             }
           });
         }
