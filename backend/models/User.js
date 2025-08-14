@@ -25,20 +25,20 @@ const UserSchema = new mongoose.Schema({
   // New fields
   company: {
     type: String,
-    required: function() { return this.role === 'client'; }
+    required: function() { return this.role === 'client'; } // Required for clients only
   },
   uniqueCode: {
     type: String,
-    required: function() { return this.role === 'client'; }
+    required: function() { return this.role === 'client'; } // Required for clients only
   },
   location: {
     city: {
       type: String,
-      required: function() { return this.role === 'client'; }
+      required: function() { return this.role === 'client'; } // Required for clients only
     },
     pincode: {
       type: String,
-      required: function() { return this.role === 'client'; }
+      required: function() { return this.role === 'client'; } // Required for clients only
     }
   },
   // Approval status
@@ -52,8 +52,7 @@ const UserSchema = new mongoose.Schema({
     location: { // Make location entirely optional within lastLogin
       type: { type: String, enum: ['Point'], required: false },
       coordinates: { type: [Number], required: false }
-    },
-    required: false // Make the entire lastLogin.location object optional
+    }
   },
   createdAt: {
     type: Date,
@@ -61,4 +60,4 @@ const UserSchema = new mongoose.Schema({
   }
 });
 
-module.exports = mongoose.model('User', UserSchema);
+module.exports = mongoose.model('User ', UserSchema);
