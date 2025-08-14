@@ -86,7 +86,7 @@ router.post('/register', checkDBConnection, async (req, res) => {
 
 // Login
 router.post('/login', checkDBConnection, async (req, res) => {
-  const { email, password, role, pincode, location } = req.body; // Get role from req.body
+  const { email, password, role, pincode } = req.body; // Removed 'location' from destructuring
   
   try {
     // Find user
@@ -122,16 +122,10 @@ router.post('/login', checkDBConnection, async (req, res) => {
     }
     // For staff and admin, pincode is now optional for login.
 
-    // Update login information
+    // Update login information (removed location update)
     user.lastLogin = {
       timestamp: new Date(), // Always set timestamp
-      // Only include location if it's provided
-      ...(location && { 
-        location: {
-          type: 'Point',
-          coordinates: [location.longitude, location.latitude]
-        }
-      })
+      // Removed location property entirely
     };
     await user.save();
     
