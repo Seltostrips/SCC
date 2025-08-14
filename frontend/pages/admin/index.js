@@ -171,9 +171,9 @@ function AdminDashboard({ user }) {
   const handleApproveUser  = async (userId) => {
     try {
       const token = localStorage.getItem('token');
-        await axios.post(`/api/auth/approve/${userId}`, {}, {
-          headers: {
-            Authorization: `Bearer ${token}`
+      await axios.post(`/api/auth/approve/${userId}`, {}, {
+        headers: {
+          Authorization: `Bearer ${token}`
         }
       });
       
@@ -356,4 +356,91 @@ function AdminDashboard({ user }) {
                     placeholder="Enter pincode"
                   />
                 </div>
-             
+              </div>
+              
+              <div className="flex space-x-4">
+                <button
+                  onClick={applyFilters}
+                  className="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Apply Filters
+                </button>
+                
+                <button
+                  onClick={resetFilters}
+                  className="bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                >
+                  Reset Filters
+                </button>
+              </div>
+            </div>
+            
+            <div className="bg-white p-6 rounded-lg shadow mb-6">
+              <h2 className="text-lg font-semibold mb-4">Summary</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-sm text-blue-500">Total Bins Processed</p>
+                  <p className="text-2xl font-bold">{entries.length}</p>
+                </div>
+                
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <p className="text-sm text-yellow-500">Pending</p>
+                  <p className="text-2xl font-bold">{entries.filter(e => e.status === 'pending-client').length}</p>
+                </div>
+                
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <p className="text-sm text-green-500">Resolved</p>
+                  <p className="text-2xl font-bold">{entries.filter(e => e.status !== 'pending-client').length}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+              {entries.length === 0 ? (
+                <div className="p-6 text-center">
+                  <p className="text-gray-500">No entries found</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bin ID</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Book Qty</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actual Qty</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unique Code</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time to Approve</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {entries.map((entry) => (
+                        <tr key={entry._id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{entry.binId}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.bookQuantity}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.actualQuantity}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.staffId?.name || 'N/A'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.clientId?.name || 'N/A'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.uniqueCode}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{entry.status}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {entry.timestamps.clientResponse && entry.timestamps.staffEntry
+                              ? `${Math.round((entry.timestamps.clientResponse - entry.timestamps.staffEntry) / 60000)} mins`
+                              : 'N/A'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+        
+        {/* Pending Approvals Tab */}
+        {activeTab === 'approvals' && (
+          <div className="bg-white rounded
