@@ -18,14 +18,15 @@ function AdminDashboard({ user }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true); // Set loading true when tab changes
     if (activeTab === 'dashboard') {
       fetchEntries();
     } else if (activeTab === 'approvals') {
-      fetchPendingApprovals(); // This should be called when tab becomes 'approvals'
+      fetchPendingApprovals();
     } else if (activeTab === 'logs') {
       fetchLoginLogs();
     }
-  }, [activeTab]); // Dependency array ensures it runs when activeTab changes
+  }, [activeTab]);
 
   const fetchEntries = async () => {
     try {
@@ -45,7 +46,7 @@ function AdminDashboard({ user }) {
         }
       });
       
-      console.log('Entries:', res.data);
+      console.log('Fetched Entries for Admin Dashboard:', res.data);
       setEntries(res.data);
       setLoading(false);
     } catch (err) {
@@ -62,6 +63,7 @@ function AdminDashboard({ user }) {
           Authorization: `Bearer ${token}`
         }
       });
+      console.log('Fetched Pending Approvals:', res.data);
       setPendingApprovals(res.data);
       setLoading(false);
     } catch (err) {
@@ -78,6 +80,7 @@ function AdminDashboard({ user }) {
             Authorization: `Bearer ${token}`
           }
         });
+        console.log('Fetched Login Logs:', res.data); // Debug log
         setLoginLogs(res.data);
         setLoading(false);
       } catch (err) {
@@ -117,7 +120,7 @@ function AdminDashboard({ user }) {
   const handleApproveUser = async (userId) => {
     try {
       const token = localStorage.getItem('token');
-        await axios.post(`/api/auth/approve/${userId}`, {}, { // This correctly sends a POST request
+        await axios.post(`/api/auth/approve/${userId}`, {}, {
           headers: {
             Authorization: `Bearer ${token}`
         }
@@ -133,21 +136,30 @@ function AdminDashboard({ user }) {
   };
 
   const handleExportLogs = () => {
+    // Ensure loginLogs is an array before mapping
+    if (!Array.isArray(loginLogs) || loginLogs.length === 0) {
+      alert('No login logs to export.');
+      return;
+    }
+
     const csvData = loginLogs.map(log => ({
-      Name: log.name,
-      Email: log.email,
-      Role: log.role,
+      Name: log.name || 'N/A',
+      Email: log.email || 'N/A',
+      Role: log.role || 'N/A',
       'Last Login': log.lastLogin?.timestamp ? new Date(log.lastLogin.timestamp).toLocaleString() : 'Never',
-      'Location': log.lastLogin?.location ? 
+      'Location': (log.lastLogin?.location?.coordinates && log.lastLogin.location.coordinates.length === 2) ? 
         `${log.lastLogin.location.coordinates[1]}, ${log.lastLogin.location.coordinates[0]}` : 
         'N/A',
-      'Registration Date': new Date(log.createdAt).toLocaleString()
+      'Registration Date': log.createdAt ? new Date(log.createdAt).toLocaleString() : 'N/A'
     }));
     
     const headers = Object.keys(csvData[0] || {});
     const csvContent = [
       headers.join(','),
-      ...csvData.map(row => headers.map(header => `"${row[header]}"`).join(','))
+      ...csvData.map(row => headers.map(header => {
+        const value = row[header];
+        return `"${value !== null && value !== undefined ? String(value).replace(/"/g, '""') : ''}"`;
+      }).join(','))
     ].join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -422,15 +434,7 @@ function AdminDashboard({ user }) {
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
               <h2 className="text-lg font-semibold">User Login Logs</h2>
-           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-      {log.lastLogin?.timestamp ? new Date(log.lastLogin.timestamp).toLocaleString() : 'Never'}
-    </td>
-    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-      {log.lastLogin?.location ? 
-        `${log.lastLogin.location.coordinates[1]}, ${log.lastLogin.location.coordinates[0]}` : 
-        'N/A'
-      }
-    </td>
+              {/* REMOVED MISPLACED TD TAGS HERE */}
               <button
                 onClick={handleExportLogs}
                 className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -487,6 +491,3 @@ function AdminDashboard({ user }) {
 }
 
 export default withAuth(AdminDashboard, 'admin');
-
-
-
