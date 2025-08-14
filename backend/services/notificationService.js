@@ -1,4 +1,3 @@
-// Notification service 
 const nodemailer = require('nodemailer');
 const twilio = require('twilio');
 const User = require('../models/User');
@@ -48,6 +47,38 @@ module.exports = {
       }
     } catch (error) {
       console.error('Error sending client notifications:', error);
+    }
+  },
+  
+  notifyClient: async (client, entry) => {
+    try {
+      // Send email
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: client.email,
+        subject: 'New Inventory Entry Requires Review',
+        html: `
+          <p>A new inventory entry requires your review:</p>
+          <ul>
+            <li>Bin ID: ${entry.binId}</li>
+            <li>Book Quantity: ${entry.bookQuantity}</li>
+            <li>Actual Quantity: ${entry.actualQuantity}</li>
+            <li>Discrepancy: ${entry.discrepancy}</li>
+          </ul>
+          <p>Please log in to the portal to review this entry.</p>
+        `
+      });
+      
+      // Send WhatsApp if phone number is available
+      if (client.phone) {
+        await client.messages.create({
+          body: `New inventory entry requires review. Bin ID: ${entry.binId}, Discrepancy: ${entry.discrepancy}`,
+          from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
+          to: `whatsapp:${client.phone}`
+        });
+      }
+    } catch (error) {
+      console.error('Error sending client notification:', error);
     }
   },
   
