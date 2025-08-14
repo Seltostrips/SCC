@@ -86,7 +86,7 @@ router.post('/register', checkDBConnection, async (req, res) => {
 
 // Login
 router.post('/login', checkDBConnection, async (req, res) => {
-  const { email, password, role, pincode } = req.body; // Removed 'location' from destructuring
+  const { email, password, role, pincode } = req.body;
   
   try {
     // Find user
