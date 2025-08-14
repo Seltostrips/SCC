@@ -11,14 +11,11 @@ export default function Login() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  // Removed location and locationLoading states
   const router = useRouter();
 
   const { email, password, role, pincode } = formData;
 
   const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-
-  // Removed getLocation function
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -29,9 +26,8 @@ export default function Login() {
       const loginData = {
         email,
         password,
-        role,
+        role, // Ensure role is included
         ...(pincode && { pincode }),
-        // Removed location from loginData
       };
       
       const res = await axios.post('/api/auth/login', loginData);
@@ -123,8 +119,6 @@ export default function Login() {
           </div>
 
           {error && <div className="text-red-500 text-center">{error}</div>}
-
-          {/* Removed Geolocation checkbox */}
 
           <div>
             <button
