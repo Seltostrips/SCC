@@ -21,8 +21,8 @@ function ClientDashboard({ user }) {
         // Join client room
         newSocket.emit('join-room', 'client');
         
-        // Listen for new pending entries
-        newSocket.on('new-pending-entry', (entry) => {
+        // Listen for new pending entries for this specific client
+        newSocket.on(`new-pending-entry-${user._id}`, (entry) => {
           console.log('New pending entry received:', entry);
           setPendingEntries(prev => [entry, ...prev]);
           alert('New inventory entry requires your review!');
@@ -33,7 +33,7 @@ function ClientDashboard({ user }) {
         };
       });
     }
-  }, []);
+  }, [user._id]);
 
   const fetchPendingEntries = async () => {
     try {
@@ -103,7 +103,11 @@ function ClientDashboard({ user }) {
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-2xl font-bold mb-6">Client Dashboard</h1>
-        <p className="text-center mb-6">Welcome, {user.name}</p>
+        <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+          <p className="font-medium">Company: {user.company}</p>
+          <p className="font-medium">Unique Code: {user.uniqueCode}</p>
+          <p className="font-medium">Location: {user.location.city}, {user.location.pincode}</p>
+        </div>
         
         {selectedEntry ? (
           <div className="bg-white p-6 rounded-lg shadow mb-6">
