@@ -117,9 +117,9 @@ function AdminDashboard({ user }) {
   const handleApproveUser = async (userId) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(`/api/auth/approve/${userId}`, {}, {
-        headers: {
-          Authorization: `Bearer ${token}`
+        await axios.post(`/api/auth/approve/${userId}`, {}, { // This correctly sends a POST request
+          headers: {
+            Authorization: `Bearer ${token}`
         }
       });
       
@@ -487,5 +487,6 @@ function AdminDashboard({ user }) {
 }
 
 export default withAuth(AdminDashboard, 'admin');
+
 
 
