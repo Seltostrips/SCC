@@ -39,6 +39,9 @@ const InventorySchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  qrCode: { // ADD THIS FIELD
+    type: String
+  },
   timestamps: {
     staffEntry: {
       type: Date,
