@@ -7,6 +7,11 @@ function AdminDashboard({ user }) {
   const [entries, setEntries] = useState([]);
   const [pendingApprovals, setPendingApprovals] = useState([]);
   const [loginLogs, setLoginLogs] = useState([]);
+  const [allUsers, setAllUsers] = useState([]); // New state for all users
+  const [editingUser, setEditingUser] = useState(null); // State for user being edited
+  const [editCompany, setEditCompany] = useState('');
+  const [editCity, setEditCity] = useState('');
+
   const [filters, setFilters] = useState({
     startDate: '',
     endDate: '',
@@ -25,6 +30,8 @@ function AdminDashboard({ user }) {
       fetchPendingApprovals();
     } else if (activeTab === 'logs') {
       fetchLoginLogs();
+    } else if (activeTab === 'user-management') { // New tab
+      fetchAllUsers();
     }
   }, [activeTab]);
 
@@ -88,6 +95,50 @@ function AdminDashboard({ user }) {
         setLoading(false);
       }
     };
+
+  const fetchAllUsers = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get('/api/auth/all-users', { // New API endpoint
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      setAllUsers(res.data);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching all users:', err);
+      setLoading(false);
+    }
+  };
+
+  const handleEditUser = (userToEdit) => {
+    setEditingUser(userToEdit);
+    setEditCompany(userToEdit.company || '');
+    setEditCity(userToEdit.location?.city || '');
+  };
+
+  const handleSaveUserChanges = async () => {
+    if (!editingUser) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`/api/auth/update-user-details/${editingUser._id}`, { // New API endpoint
+        company: editCompany,
+        city: editCity
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      alert('User details updated successfully!');
+      setEditingUser(null); // Exit editing mode
+      fetchAllUsers(); // Refresh the list
+    } catch (err) {
+      console.error('Error saving user changes:', err);
+      alert(err.response?.data?.message || 'Error saving user changes.');
+    }
+  };
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -215,6 +266,16 @@ function AdminDashboard({ user }) {
               }`}
             >
               User Logs
+            </button>
+            <button
+              onClick={() => setActiveTab('user-management')} // New Tab Button
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'user-management'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              User Management
             </button>
           </nav>
         </div>
@@ -434,7 +495,6 @@ function AdminDashboard({ user }) {
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
               <h2 className="text-lg font-semibold">User Login Logs</h2>
-              {/* REMOVED MISPLACED TD TAGS HERE */}
               <button
                 onClick={handleExportLogs}
                 className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -469,7 +529,7 @@ function AdminDashboard({ user }) {
                           {log.lastLogin?.timestamp ? new Date(log.lastLogin.timestamp).toLocaleString() : 'Never'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {log.lastLogin?.location ? 
+                          {log.lastLogin?.location?.coordinates && log.lastLogin.location.coordinates.length === 2 ? 
                             `${log.lastLogin.location.coordinates[1]}, ${log.lastLogin.location.coordinates[0]}` : 
                             'N/A'
                           }
@@ -481,6 +541,101 @@ function AdminDashboard({ user }) {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* New User Management Tab */}
+        {activeTab === 'user-management' && (
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold">User Management</h2>
+            </div>
+            {allUsers.length === 0 ? (
+              <div className="p-6 text-center">
+                <p className="text-gray-500">No users found</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">City</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {allUsers.map((userItem) => ( // Renamed 'user' to 'userItem' to avoid conflict with 'user' prop
+                      <tr key={userItem._id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{userItem.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{userItem.email}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{userItem.role}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{userItem.company || 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{userItem.location?.city || 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button
+                            onClick={() => handleEditUser(userItem)}
+                            className="text-indigo-600 hover:text-indigo-900"
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {editingUser && (
+              <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
+                <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
+                  <h3 className="text-xl font-semibold mb-4">Edit User: {editingUser.name}</h3>
+                  <div className="mb-4">
+                    <label htmlFor="editCompany" className="block text-sm font-medium text-gray-700">Company Name</label>
+                    <input
+                      type="text"
+                      id="editCompany"
+                      value={editCompany}
+                      onChange={(e) => setEditCompany(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      disabled={editingUser.role !== 'client'} // Only editable for clients
+                    />
+                    {editingUser.role !== 'client' && <p className="text-xs text-gray-500 mt-1">Only client company can be updated.</p>}
+                  </div>
+                  <div className="mb-4">
+                    <label htmlFor="editCity" className="block text-sm font-medium text-gray-700">City</label>
+                    <input
+                      type="text"
+                      id="editCity"
+                      value={editCity}
+                      onChange={(e) => setEditCity(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      disabled={editingUser.role !== 'client'} // Only editable for clients
+                    />
+                    {editingUser.role !== 'client' && <p className="text-xs text-gray-500 mt-1">Only client city can be updated.</p>}
+                  </div>
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      onClick={() => setEditingUser(null)}
+                      className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveUserChanges}
+                      className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      disabled={editingUser.role !== 'client'} // Only savable for clients
+                    >
+                      Save Changes
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
