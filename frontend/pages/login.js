@@ -6,6 +6,7 @@ export default function Login() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    role: 'staff', // Default role
     pincode: ''
   });
   const [error, setError] = useState('');
@@ -14,7 +15,7 @@ export default function Login() {
   const [locationLoading, setLocationLoading] = useState(false);
   const router = useRouter();
 
-  const { email, password, pincode } = formData;
+  const { email, password, role, pincode } = formData; // Include role in destructuring
 
   const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -32,14 +33,11 @@ export default function Login() {
         (error) => {
           console.error('Error getting location:', error);
           setLocationLoading(false);
-          // Optionally, set an error message to the user if location is crucial
-          // setError('Could not get your location. Please enable location services.');
         }
       );
     } else {
       console.error('Geolocation is not supported by this browser.');
       setLocationLoading(false);
-      // setError('Geolocation is not supported by your browser.');
     }
   };
 
@@ -49,23 +47,18 @@ export default function Login() {
     setError('');
     
     try {
-      // Get location if not already obtained and not currently loading
-      // This logic might cause a double submission if location is not yet available.
-      // A better approach might be to disable submit until location is obtained or user opts out.
-      if (!location && !locationLoading && (router.query.role === 'staff' || router.query.role === 'client')) {
-        // Only prompt for location if role is staff or client, and location isn't already set/loading
+      // Get location if not already obtained
+      if (!location && !locationLoading) {
         getLocation();
         setLoading(false);
-        return; // Prevent immediate submission if location is being fetched
+        return;
       }
       
       const loginData = {
         email,
         password,
-        // Pincode is required for staff and client, but not admin.
-        // The backend handles this validation.
+        role, // Include role in login data
         ...(pincode && { pincode }),
-        // Only send location if it's available
         ...(location && { location })
       };
       
@@ -81,7 +74,7 @@ export default function Login() {
       } else if (user.role === 'client') {
         router.push('/client');
       } else if (user.role === 'admin') {
-        router.push('/admin'); // This is the target for admin
+        router.push('/admin');
       } else {
         setError('Invalid user role');
       }
@@ -129,6 +122,22 @@ export default function Login() {
                 onChange={onChange}
               />
             </div>
+            {/* New Role Dropdown */}
+            <div>
+              <label htmlFor="role" className="block text-sm font-medium text-gray-700">Login As</label>
+              <select
+                id="role"
+                name="role"
+                required
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                value={role}
+                onChange={onChange}
+              >
+                <option value="staff">Staff</option>
+                <option value="client">Client</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
             <div>
               <label htmlFor="pincode" className="block text-sm font-medium text-gray-700">Pincode</label>
               <input
@@ -136,7 +145,7 @@ export default function Login() {
                 name="pincode"
                 type="text"
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Pincode (required for staff and client)"
+                placeholder="Pincode (required for client login)"
                 value={pincode}
                 onChange={onChange}
               />
