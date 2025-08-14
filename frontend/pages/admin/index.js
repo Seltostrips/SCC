@@ -71,20 +71,20 @@ function AdminDashboard({ user }) {
   };
 
   const fetchLoginLogs = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get('/api/auth/login-logs', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      setLoginLogs(res.data);
-      setLoading(false);
-    } catch (err) {
-      console.error('Error fetching login logs:', err);
-      setLoading(false);
-    }
-  };
+      try {
+        const token = localStorage.getItem('token');
+        const res = await axios.get('/api/auth/login-logs', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        setLoginLogs(res.data);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching login logs:', err);
+        setLoading(false);
+      }
+    };
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -422,6 +422,15 @@ function AdminDashboard({ user }) {
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
               <h2 className="text-lg font-semibold">User Login Logs</h2>
+           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+      {log.lastLogin?.timestamp ? new Date(log.lastLogin.timestamp).toLocaleString() : 'Never'}
+    </td>
+    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+      {log.lastLogin?.location ? 
+        `${log.lastLogin.location.coordinates[1]}, ${log.lastLogin.location.coordinates[0]}` : 
+        'N/A'
+      }
+    </td>
               <button
                 onClick={handleExportLogs}
                 className="bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -478,3 +487,4 @@ function AdminDashboard({ user }) {
 }
 
 export default withAuth(AdminDashboard, 'admin');
+
