@@ -249,20 +249,22 @@ router.get('/pending-approvals', [auth, checkDBConnection], async (req, res) => 
 });
 
 // Get user login logs (admin only)
-router.get('/login-logs', [auth, checkDBConnection], async (req, res) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized' });
-    }
+    router.get('/login-logs', [auth, checkDBConnection], async (req, res) => {
+      try {
+        if (req.user.role !== 'admin') {
+          return res.status(403).json({ message: 'Not authorized' });
+        }
+        
+        const users = await User.find({ role: { $ne: 'admin' } }) // This correctly excludes admins
+          .select('name email role lastLogin createdAt');
+        
+        res.json(users);
+      } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+      }
+    });
     
-    const users = await User.find({ role: { $ne: 'admin' } })
-      .select('name email role lastLogin createdAt');
-    
-    res.json(users);
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
-  }
-});
 
 module.exports = router;
+
