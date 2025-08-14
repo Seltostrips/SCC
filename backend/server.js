@@ -40,8 +40,9 @@ io.on('connection', (socket) => {
   console.log('New client connected');
   
   // Join role-based rooms
-  socket.on('join-room', (role) => {
-    socket.join(role);
+  socket.on('join-room', (roomName) => { // roomName can be a role or a user ID
+    socket.join(roomName);
+    console.log(`Socket ${socket.id} joined room: ${roomName}`);
   });
   
   socket.on('disconnect', () => {
