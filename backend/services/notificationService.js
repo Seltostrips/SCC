@@ -109,5 +109,64 @@ module.exports = {
     } catch (error) {
       console.error('Error sending staff notification:', error);
     }
+  },
+
+  // New function to notify admin about pending user approval
+  notifyAdmin: async (adminUser, newUser) => {
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: adminUser.email,
+        subject: 'New User Pending Approval',
+        html: `
+          <p>A new user has registered and is pending your approval:</p>
+          <ul>
+            <li>Name: ${newUser.name}</li>
+            <li>Email: ${newUser.email}</li>
+            <li>Role: ${newUser.role}</li>
+            ${newUser.company ? `<li>Company: ${newUser.company}</li>` : ''}
+            ${newUser.uniqueCode ? `<li>Unique Code: ${newUser.uniqueCode}</li>` : ''}
+          </ul>
+          <p>Please log in to the admin portal to review and approve this user.</p>
+        `
+      });
+
+      if (adminUser.phone) {
+        await client.messages.create({
+          body: `New user ${newUser.name} (${newUser.role}) is pending approval. Check admin portal.`,
+          from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
+          to: `whatsapp:${adminUser.phone}`
+        });
+      }
+    } catch (error) {
+      console.error('Error sending admin notification for new user:', error);
+    }
+  },
+
+  // New function to notify user about account approval
+  notifyUserApproval: async (approvedUser) => {
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: approvedUser.email,
+        subject: 'Your Account Has Been Approved!',
+        html: `
+          <p>Dear ${approvedUser.name},</p>
+          <p>Your account for the Inventory Audit Control Portal has been approved by an administrator.</p>
+          <p>You can now log in using your credentials.</p>
+          <p>Thank you!</p>
+        `
+      });
+
+      if (approvedUser.phone) {
+        await client.messages.create({
+          body: `Your Inventory Audit Control Portal account has been approved! You can now log in.`,
+          from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
+          to: `whatsapp:${approvedUser.phone}`
+        });
+      }
+    } catch (error) {
+      console.error('Error sending user approval notification:', error);
+    }
   }
 };
