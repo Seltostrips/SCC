@@ -32,11 +32,14 @@ export default function Login() {
         (error) => {
           console.error('Error getting location:', error);
           setLocationLoading(false);
+          // Optionally, set an error message to the user if location is crucial
+          // setError('Could not get your location. Please enable location services.');
         }
       );
     } else {
       console.error('Geolocation is not supported by this browser.');
       setLocationLoading(false);
+      // setError('Geolocation is not supported by your browser.');
     }
   };
 
@@ -46,17 +49,23 @@ export default function Login() {
     setError('');
     
     try {
-      // Get location if not already obtained
-      if (!location && !locationLoading) {
+      // Get location if not already obtained and not currently loading
+      // This logic might cause a double submission if location is not yet available.
+      // A better approach might be to disable submit until location is obtained or user opts out.
+      if (!location && !locationLoading && (router.query.role === 'staff' || router.query.role === 'client')) {
+        // Only prompt for location if role is staff or client, and location isn't already set/loading
         getLocation();
         setLoading(false);
-        return;
+        return; // Prevent immediate submission if location is being fetched
       }
       
       const loginData = {
         email,
         password,
+        // Pincode is required for staff and client, but not admin.
+        // The backend handles this validation.
         ...(pincode && { pincode }),
+        // Only send location if it's available
         ...(location && { location })
       };
       
@@ -72,7 +81,7 @@ export default function Login() {
       } else if (user.role === 'client') {
         router.push('/client');
       } else if (user.role === 'admin') {
-        router.push('/admin');
+        router.push('/admin'); // This is the target for admin
       } else {
         setError('Invalid user role');
       }
