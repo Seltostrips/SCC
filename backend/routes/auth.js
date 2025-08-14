@@ -4,7 +4,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/User');
-const auth = require('../middleware/auth'); // Add this import
+const auth = require('../middleware/auth');
+const notificationService = require('../services/notificationService'); // Import notification service
 
 // Middleware to check MongoDB connection
 const checkDBConnection = (req, res, next) => {
@@ -65,7 +66,23 @@ router.post('/register', checkDBConnection, async (req, res) => {
     
     // If not admin, notify admin for approval
     if (role !== 'admin') {
-      // TODO: Send notification to admin for approval
+      // Find all admins
+      const admins = await User.find({ role: 'admin' });
+      const io = req.app.get('io'); // Get the socket.io instance
+
+      for (const adminUser of admins) {
+        // Send email/WhatsApp notification to admin
+        await notificationService.notifyAdmin(adminUser, user);
+        
+        // Emit real-time notification to admin
+        if (io) {
+          console.log(`Emitting new-approval-request event to admin ${adminUser._id}`);
+          io.to(adminUser._id.toString()).emit('new-approval-request', {
+            message: `New user ${user.name} (${user.role}) is pending approval.`,
+            userId: user._id
+          });
+        }
+      }
     }
     
     res.status(201).json({ 
@@ -165,14 +182,8 @@ router.post('/login', checkDBConnection, async (req, res) => {
 // Get current user
 router.get('/me', [auth, checkDBConnection], async (req, res) => {
   try {
-    const token = req.header('Authorization').replace('Bearer ', '');
-    
-    if (!token) {
-      return res.status(401).json({ message: 'No token, authorization denied' });
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select('-password');
+    // req.user is already populated by the auth middleware
+    const user = req.user; // Use req.user directly
     
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -192,15 +203,26 @@ router.post('/approve/:userId', [auth, checkDBConnection], async (req, res) => {
       return res.status(403).json({ message: 'Not authorized' });
     }
     
-    const user = await User.findById(req.params.userId);
-    if (!user) {
+    const userToApprove = await User.findById(req.params.userId); // Renamed to avoid conflict with req.user
+    if (!userToApprove) {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    user.isApproved = true;
-    await user.save();
+    userToApprove.isApproved = true;
+    await userToApprove.save();
     
-    // TODO: Send notification to user about approval
+    // Send notification to user about approval
+    await notificationService.notifyUserApproval(userToApprove);
+
+    // Emit real-time notification to the approved user
+    const io = req.app.get('io');
+    if (io) {
+      console.log(`Emitting user-approved event to user ${userToApprove._id}`);
+      io.to(userToApprove._id.toString()).emit('user-approved', {
+        message: 'Your account has been approved!',
+        userId: userToApprove._id
+      });
+    }
     
     res.json({ message: 'User approved successfully' });
   } catch (err) {
