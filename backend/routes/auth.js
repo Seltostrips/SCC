@@ -134,15 +134,15 @@ router.post('/login', checkDBConnection, async (req, res) => {
       }
     }
     
-    // Update login information
+    // Update login information - THIS IS THE CRITICAL PART
     user.lastLogin = {
       timestamp: new Date(),
       location: location ? {
         type: 'Point',
-        coordinates: [location.longitude, location.latitude]
+       coordinates: [location.longitude, location.latitude]
       } : undefined
     };
-    await user.save();
+    await user.save(); // Ensure user is saved after updating lastLogin
     
     // Create JWT payload
     const payload = {
@@ -178,6 +178,9 @@ router.post('/login', checkDBConnection, async (req, res) => {
     res.status(500).send('Server error');
   }
 });
+
+// ... (rest of the file)
+
 
 // Get current user
 router.get('/me', [auth, checkDBConnection], async (req, res) => {
@@ -267,4 +270,5 @@ router.get('/pending-approvals', [auth, checkDBConnection], async (req, res) => 
     
 
 module.exports = router;
+
 
