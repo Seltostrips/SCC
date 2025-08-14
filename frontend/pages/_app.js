@@ -2,6 +2,7 @@ import '../styles/globals.css';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
+import { io } from 'socket.io-client'; // Ensure io is imported correctly
 
 let socket;
 
@@ -31,44 +32,71 @@ function MyApp({ Component, pageProps }) {
           
           // Initialize socket connection
           if (typeof window !== 'undefined') {
-            import('socket.io-client').then((ioModule) => {
-              socket = ioModule.default(process.env.NEXT_PUBLIC_API_URL);
-              
-              // Join role-based room
-              socket.emit('join-room', userData.role);
-              
-              // Listen for new pending entries (for clients)
-              if (userData.role === 'client') {
-                socket.on('new-pending-entry', (entry) => {
-                  alert('New inventory entry requires your review!');
-                });
-              }
-              
-              // Listen for entry updates (for staff)
-              if (userData.role === 'staff') {
-                socket.on('entry-updated', (entry) => {
-                  if (entry.status === 'recount-required' && entry.staffId === userData.id) {
-                    alert('Recount required for one of your entries!');
-                  }
-                });
-              }
-            });
+            // Disconnect existing socket if any
+            if (socket) {
+              socket.disconnect();
+            }
+            
+            socket = io(process.env.NEXT_PUBLIC_API_URL);
+            
+            // Join role-based room and a personal room for user-specific notifications
+            socket.emit('join-room', userData.role);
+            socket.emit('join-room', userData._id); // Join a room specific to the user's ID
+
+            // Listen for new pending entries (for clients)
+            if (userData.role === 'client') {
+              socket.on(`new-pending-entry-${userData._id}`, (entry) => { // Listen on specific client ID
+                alert('New inventory entry requires your review!');
+              });
+            }
+            
+            // Listen for entry updates (for staff)
+            if (userData.role === 'staff') {
+              socket.on(`entry-updated-${userData._id}`, (entry) => { // Listen on specific staff ID
+                if (entry.status === 'recount-required') { // Only alert if it's a recount request
+                  alert('Recount required for one of your entries!');
+                }
+              });
+            }
+
+            // Listen for new approval requests (for admins)
+            if (userData.role === 'admin') {
+              socket.on('new-approval-request', (data) => {
+                alert(`New user pending approval: ${data.message}`);
+                // Optionally, trigger a re-fetch of pending approvals in AdminDashboard
+                // This would require a way to trigger a function in AdminDashboard from _app.js
+                // For simplicity, an alert is used here.
+              });
+            }
+
+            // Listen for user approval notification (for staff/client)
+            if (userData.role === 'staff' || userData.role === 'client') {
+              socket.on('user-approved', (data) => {
+                if (data.userId === userData._id) {
+                  alert(data.message);
+                  // Optionally, force a re-check of auth status or redirect
+                  // router.reload(); // Or fetch user data again
+                }
+              });
+            }
           }
         } catch (err) {
           console.error('Auth error:', err.response?.data);
           setAuthError(err.response?.data?.message || 'Authentication failed');
           localStorage.removeItem('token');
           setUser(null);
+          if (socket) socket.disconnect(); // Disconnect socket on auth error
         }
       } else {
         setUser(null);
+        if (socket) socket.disconnect(); // Disconnect socket if no token
       }
       
       setLoading(false);
     };
 
     checkAuth();
-  }, [router.pathname]);
+  }, [router.pathname]); // Depend on router.pathname to re-check auth on route changes
 
   const logout = () => {
     localStorage.removeItem('token');
