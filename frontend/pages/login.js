@@ -6,7 +6,7 @@ export default function Login() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    role: 'staff', // Default role
+    role: 'staff', // Default role for the dropdown
     pincode: ''
   });
   const [error, setError] = useState('');
@@ -15,19 +15,21 @@ export default function Login() {
 
   const { email, password, role, pincode } = formData;
 
-  const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const onChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const onSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError(''); // Clear previous errors
     
     try {
       const loginData = {
         email,
         password,
-        role, // Ensure role is included
-        ...(pincode && { pincode }),
+        role, // Ensure the selected role is sent
+        ...(pincode && { pincode }), // Pincode is optional for staff/admin, required for client
       };
       
       const res = await axios.post('/api/auth/login', loginData);
@@ -36,6 +38,7 @@ export default function Login() {
       
       const user = res.data.user;
       
+      // Redirect based on user role
       if (user.role === 'staff') {
         router.push('/staff');
       } else if (user.role === 'client') {
@@ -43,11 +46,12 @@ export default function Login() {
       } else if (user.role === 'admin') {
         router.push('/admin');
       } else {
-        setError('Invalid user role');
+        setError('Invalid user role received from server.');
       }
     } catch (err) {
-      console.error('Login error:', err);
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      console.error('Login error:', err.response?.data || err.message);
+      // Display the specific message from the backend if available
+      setError(err.response?.data?.message || 'Login failed. Please check your credentials and selected role.');
     } finally {
       setLoading(false);
     }
