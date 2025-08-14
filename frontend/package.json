@@ -15,7 +15,7 @@
     "react-csv": "^2.2.2",
     "react-dom": "18.2.0",
     "socket.io-client": "^4.6.1",
-    "html5-qrcode": "^2.3.8" // ADD THIS LINE
+    "html5-qrcode": "^2.3.8" // Ensure there is NO comma after this line if it's the last dependency
   },
   "devDependencies": {
     "autoprefixer": "^10.4.14",
