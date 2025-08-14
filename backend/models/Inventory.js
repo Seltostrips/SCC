@@ -1,4 +1,3 @@
-// Inventory model 
 const mongoose = require('mongoose');
 
 const InventorySchema = new mongoose.Schema({
@@ -30,6 +29,15 @@ const InventorySchema = new mongoose.Schema({
   clientId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  // New fields
+  uniqueCode: {
+    type: String,
+    required: true
+  },
+  pincode: {
+    type: String,
+    required: true
   },
   timestamps: {
     staffEntry: {
