@@ -49,10 +49,11 @@ const UserSchema = new mongoose.Schema({
   // Login tracking
   lastLogin: {
     timestamp: Date,
-    location: {
+    location: { // Make location entirely optional within lastLogin
       type: { type: String, enum: ['Point'], required: false },
       coordinates: { type: [Number], required: false }
-    }
+    },
+    required: false // Make the entire lastLogin.location object optional
   },
   createdAt: {
     type: Date,
