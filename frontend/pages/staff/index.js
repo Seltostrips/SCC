@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import withAuth from '../../components/withAuth';
 
@@ -8,14 +8,49 @@ function StaffDashboard({ user }) {
     bookQuantity: '',
     actualQuantity: '',
     notes: '',
-    location: ''
+    location: '',
+    uniqueCode: '',
+    pincode: ''
   });
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uniqueCodes, setUniqueCodes] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const { binId, bookQuantity, actualQuantity, notes, location } = formData;
+  useEffect(() => {
+    fetchUniqueCodes();
+  }, []);
+
+  const fetchUniqueCodes = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get('/api/inventory/unique-codes', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      setUniqueCodes(res.data);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching unique codes:', err);
+      setLoading(false);
+    }
+  };
+
+  const { binId, bookQuantity, actualQuantity, notes, location, uniqueCode, pincode } = formData;
 
   const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const onUniqueCodeChange = (e) => {
+    const selectedCode = e.target.value;
+    const selectedClient = uniqueCodes.find(client => client.uniqueCode === selectedCode);
+    
+    setFormData({
+      ...formData,
+      uniqueCode: selectedCode,
+      pincode: selectedClient ? selectedClient.location.pincode : ''
+    });
+  };
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -46,7 +81,9 @@ function StaffDashboard({ user }) {
         bookQuantity: '',
         actualQuantity: '',
         notes: '',
-        location: ''
+        location: '',
+        uniqueCode: '',
+        pincode: ''
       });
     } catch (err) {
       console.error('Error submitting entry:', err);
@@ -55,6 +92,10 @@ function StaffDashboard({ user }) {
       setIsSubmitting(false);
     }
   };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -105,6 +146,39 @@ function StaffDashboard({ user }) {
               onChange={onChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
               required
+            />
+          </div>
+          
+          <div className="mb-4">
+            <label htmlFor="uniqueCode" className="block text-gray-700 font-medium mb-2">Client Code</label>
+            <select
+              id="uniqueCode"
+              name="uniqueCode"
+              value={uniqueCode}
+              onChange={onUniqueCodeChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              required
+            >
+              <option value="">Select a client</option>
+              {uniqueCodes.map((client) => (
+                <option key={client._id} value={client.uniqueCode}>
+                  {client.company} - {client.uniqueCode} ({client.location.city})
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div className="mb-4">
+            <label htmlFor="pincode" className="block text-gray-700 font-medium mb-2">Pincode</label>
+            <input
+              type="text"
+              id="pincode"
+              name="pincode"
+              value={pincode}
+              onChange={onChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              required
+              readOnly
             />
           </div>
           
