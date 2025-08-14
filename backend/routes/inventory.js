@@ -16,7 +16,7 @@ const checkDBConnection = (req, res, next) => {
 
 // Create inventory entry
 router.post('/', [auth, checkDBConnection], async (req, res) => {
-  const { binId, bookQuantity, actualQuantity, notes, location, uniqueCode, pincode } = req.body;
+  const { binId, bookQuantity, actualQuantity, notes, location, uniqueCode, pincode, qrCode } = req.body; // ADD qrCode
   
   try {
     console.log('Creating inventory entry:', req.body);
@@ -40,6 +40,7 @@ router.post('/', [auth, checkDBConnection], async (req, res) => {
       location,
       uniqueCode,
       pincode,
+      qrCode, // ADD qrCode
       staffId: req.user.id,
       clientId: client._id
     });
@@ -183,42 +184,47 @@ router.post('/:id/respond', [auth, checkDBConnection], async (req, res) => {
   }
 });
 
-// Get all entries (for admin)
+// Get all entries (for admin and staff to view their own)
 router.get('/', [auth, checkDBConnection], async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized' });
-    }
-    
-    const { startDate, endDate, location, staff, uniqueCode, pincode } = req.query;
-    
     let query = {};
-    
-    if (startDate && endDate) {
-      query['timestamps.staffEntry'] = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
-    }
-    
-    if (location) {
-      query.location = location;
-    }
-    
-    if (staff) {
-      // Find staff by name
-      const staffUser = await User.findOne({ name: { $regex: staff, $options: 'i' }, role: 'staff' });
-      if (staffUser) {
-        query.staffId = staffUser._id;
+
+    // If admin, apply filters from query params
+    if (req.user.role === 'admin') {
+      const { startDate, endDate, location, staff, uniqueCode, pincode } = req.query;
+      
+      if (startDate && endDate) {
+        query['timestamps.staffEntry'] = {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate)
+        };
       }
-    }
-    
-    if (uniqueCode) {
-      query.uniqueCode = uniqueCode;
-    }
-    
-    if (pincode) {
-      query.pincode = pincode;
+      
+      if (location) {
+        query.location = location;
+      }
+      
+      if (staff) {
+        // Find staff by name
+        const staffUser = await User.findOne({ name: { $regex: staff, $options: 'i' }, role: 'staff' });
+        if (staffUser) {
+          query.staffId = staffUser._id;
+        }
+      }
+      
+      if (uniqueCode) {
+        query.uniqueCode = uniqueCode;
+      }
+      
+      if (pincode) {
+        query.pincode = pincode;
+      }
+    } else if (req.user.role === 'staff') {
+      // If staff, only show their own entries
+      query.staffId = req.user._id;
+    } else {
+      // Clients should use /api/inventory/pending or a specific client-filtered route
+      return res.status(403).json({ message: 'Not authorized to view all entries' });
     }
     
     const entries = await Inventory.find(query)
