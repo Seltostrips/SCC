@@ -5,7 +5,6 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
-const notificationService = require('../services/notificationService'); // Import notification service
 
 // Middleware to check MongoDB connection
 const checkDBConnection = (req, res, next) => {
@@ -26,7 +25,7 @@ router.post('/register', checkDBConnection, async (req, res) => {
       return res.status(400).json({ message: 'User already exists' });
     }
     
-    // Validate role-specific fields
+    // Validate role-specific fields for client registration
     if (role === 'client' && (!company || !uniqueCode || !location?.city || !location?.pincode)) {
       return res.status(400).json({ message: 'Company, unique code, city, and pincode are required for client registration' });
     }
@@ -66,23 +65,7 @@ router.post('/register', checkDBConnection, async (req, res) => {
     
     // If not admin, notify admin for approval
     if (role !== 'admin') {
-      // Find all admins
-      const admins = await User.find({ role: 'admin' });
-      const io = req.app.get('io'); // Get the socket.io instance
-
-      for (const adminUser of admins) {
-        // Send email/WhatsApp notification to admin
-        await notificationService.notifyAdmin(adminUser, user);
-        
-        // Emit real-time notification to admin
-        if (io) {
-          console.log(`Emitting new-approval-request event to admin ${adminUser._id}`);
-          io.to(adminUser._id.toString()).emit('new-approval-request', {
-            message: `New user ${user.name} (${user.role}) is pending approval.`,
-            userId: user._id
-          });
-        }
-      }
+      // TODO: Send notification to admin for approval
     }
     
     res.status(201).json({ 
@@ -103,13 +86,18 @@ router.post('/register', checkDBConnection, async (req, res) => {
 
 // Login
 router.post('/login', checkDBConnection, async (req, res) => {
-  const { email, password, pincode, location } = req.body;
+  const { email, password, role, pincode, location } = req.body; // Get role from req.body
   
   try {
     // Find user
     let user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // Verify that the user's actual role matches the role they selected for login
+    if (user.role !== role) {
+      return res.status(400).json({ message: `You are registered as a ${user.role}, please select the correct role to log in.` });
     }
     
     // Check if user is approved
@@ -123,26 +111,29 @@ router.post('/login', checkDBConnection, async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
     
-    // Verify pincode for staff and clients
-    if (user.role !== 'admin') {
+    // Verify pincode for clients only
+    if (user.role === 'client') {
       if (!pincode) {
-        return res.status(400).json({ message: 'Pincode is required' });
+        return res.status(400).json({ message: 'Pincode is required for client login' });
       }
-      
-      if (user.role === 'client' && pincode !== user.location.pincode) {
-        return res.status(400).json({ message: 'Invalid pincode' });
+      if (pincode !== user.location.pincode) {
+        return res.status(400).json({ message: 'Invalid pincode for client' });
       }
     }
-    
-    // Update login information - THIS IS THE CRITICAL PART
+    // For staff and admin, pincode is now optional for login.
+
+    // Update login information
     user.lastLogin = {
-      timestamp: new Date(),
-      location: location ? {
-        type: 'Point',
-       coordinates: [location.longitude, location.latitude]
-      } : undefined
+      timestamp: new Date(), // Always set timestamp
+      // Only include location if it's provided
+      ...(location && { 
+        location: {
+          type: 'Point',
+          coordinates: [location.longitude, location.latitude]
+        }
+      })
     };
-    await user.save(); // Ensure user is saved after updating lastLogin
+    await user.save();
     
     // Create JWT payload
     const payload = {
@@ -179,14 +170,17 @@ router.post('/login', checkDBConnection, async (req, res) => {
   }
 });
 
-// ... (rest of the file)
-
-
 // Get current user
 router.get('/me', [auth, checkDBConnection], async (req, res) => {
   try {
-    // req.user is already populated by the auth middleware
-    const user = req.user; // Use req.user directly
+    const token = req.header('Authorization').replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ message: 'No token, authorization denied' });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.id).select('-password');
     
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -206,26 +200,15 @@ router.post('/approve/:userId', [auth, checkDBConnection], async (req, res) => {
       return res.status(403).json({ message: 'Not authorized' });
     }
     
-    const userToApprove = await User.findById(req.params.userId); // Renamed to avoid conflict with req.user
-    if (!userToApprove) {
+    const user = await User.findById(req.params.userId);
+    if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    userToApprove.isApproved = true;
-    await userToApprove.save();
+    user.isApproved = true;
+    await user.save();
     
-    // Send notification to user about approval
-    await notificationService.notifyUserApproval(userToApprove);
-
-    // Emit real-time notification to the approved user
-    const io = req.app.get('io');
-    if (io) {
-      console.log(`Emitting user-approved event to user ${userToApprove._id}`);
-      io.to(userToApprove._id.toString()).emit('user-approved', {
-        message: 'Your account has been approved!',
-        userId: userToApprove._id
-      });
-    }
+    // TODO: Send notification to user about approval
     
     res.json({ message: 'User approved successfully' });
   } catch (err) {
@@ -252,23 +235,81 @@ router.get('/pending-approvals', [auth, checkDBConnection], async (req, res) => 
 });
 
 // Get user login logs (admin only)
-    router.get('/login-logs', [auth, checkDBConnection], async (req, res) => {
-      try {
-        if (req.user.role !== 'admin') {
-          return res.status(403).json({ message: 'Not authorized' });
-        }
-        
-        const users = await User.find({ role: { $ne: 'admin' } }) // This correctly excludes admins
-          .select('name email role lastLogin createdAt');
-        
-        res.json(users);
-      } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-      }
-    });
+router.get('/login-logs', [auth, checkDBConnection], async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
     
+    const users = await User.find({ role: { $ne: 'admin' } })
+      .select('name email role lastLogin createdAt');
+    
+    res.json(users);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+// New: Get all users (admin only)
+router.get('/all-users', [auth, checkDBConnection], async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    
+    const users = await User.find({}) // Fetch all users
+      .select('-password'); // Exclude password
+    
+    res.json(users);
+  } catch (err) {
+    console.error('Error fetching all users:', err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+// New: Update user details (admin only)
+router.put('/update-user-details/:userId', [auth, checkDBConnection], async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    const { company, city } = req.body;
+    const userId = req.params.userId;
+
+    const userToUpdate = await User.findById(userId);
+
+    if (!userToUpdate) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Only allow updating company and city for clients
+    if (userToUpdate.role === 'client') {
+      if (company !== undefined) { // Allow setting to empty string if needed
+        userToUpdate.company = company;
+      }
+      // Ensure location object exists before trying to set city
+      if (!userToUpdate.location) {
+        userToUpdate.location = {};
+      }
+      if (city !== undefined) { // Allow setting to empty string if needed
+        userToUpdate.location.city = city;
+      }
+    } else {
+      // For staff, we might allow updating their own city/location if needed in the future,
+      // but for now, only company/city for clients.
+      return res.status(400).json({ message: 'Only client company and city can be updated via this endpoint.' });
+    }
+
+    await userToUpdate.save();
+
+    res.json({ message: 'User details updated successfully', user: userToUpdate });
+  } catch (err) {
+    console.error('Error updating user details:', err.message);
+    res.status(500).send('Server error');
+  }
+});
+
 
 module.exports = router;
-
-
