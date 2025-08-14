@@ -21,11 +21,11 @@ function AdminDashboard({ user }) {
     if (activeTab === 'dashboard') {
       fetchEntries();
     } else if (activeTab === 'approvals') {
-      fetchPendingApprovals();
+      fetchPendingApprovals(); // This should be called when tab becomes 'approvals'
     } else if (activeTab === 'logs') {
       fetchLoginLogs();
     }
-  }, [activeTab]);
+  }, [activeTab]); // Dependency array ensures it runs when activeTab changes
 
   const fetchEntries = async () => {
     try {
@@ -487,4 +487,5 @@ function AdminDashboard({ user }) {
 }
 
 export default withAuth(AdminDashboard, 'admin');
+
 
