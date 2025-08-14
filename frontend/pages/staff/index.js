@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import withAuth from '../../components/withAuth';
+import { Html5QrcodeScanner } from 'html5-qrcode'; // Import the scanner
 
 function StaffDashboard({ user }) {
   const [formData, setFormData] = useState({
@@ -10,21 +11,63 @@ function StaffDashboard({ user }) {
     notes: '',
     location: '',
     uniqueCode: '',
-    pincode: ''
+    pincode: '',
+    qrCode: '' // New field for QR code
   });
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uniqueCodes, setUniqueCodes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('entryForm'); // New state for active tab
-  const [staffEntries, setStaffEntries] = useState([]); // New state for staff's entries
+  const [activeTab, setActiveTab] = useState('entryForm');
+  const [staffEntries, setStaffEntries] = useState([]);
+  const [qrScanner, setQrScanner] = useState(null); // State to hold the scanner instance
 
   useEffect(() => {
     fetchUniqueCodes();
     if (activeTab === 'ticketStatus') {
       fetchStaffEntries();
     }
-  }, [activeTab]); // Re-fetch entries when tab changes
+  }, [activeTab]);
+
+  // Effect for QR code scanner
+  useEffect(() => {
+    if (activeTab === 'entryForm') {
+      const scannerId = "qr-reader";
+      const html5QrCodeScanner = new Html5QrcodeScanner(
+        scannerId,
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        /* verbose= */ false
+      );
+
+      const onScanSuccess = (decodedText, decodedResult) => {
+        console.log(`QR Code detected: ${decodedText}`);
+        setFormData(prev => ({ ...prev, qrCode: decodedText }));
+        setMessage('QR Code scanned successfully!');
+        // Optionally stop the scanner after a successful scan
+        html5QrCodeScanner.clear();
+      };
+
+      const onScanError = (errorMessage) => {
+        // console.warn(`QR Code scan error: ${errorMessage}`);
+      };
+
+      html5QrCodeScanner.render(onScanSuccess, onScanError);
+      setQrScanner(html5QrCodeScanner); // Store the scanner instance
+
+      return () => {
+        // Cleanup function: stop the scanner when component unmounts or tab changes
+        if (qrScanner) {
+          qrScanner.clear().catch(err => console.error("Failed to clear QR scanner", err));
+        }
+      };
+    } else {
+      // If switching away from entryForm, clear the scanner
+      if (qrScanner) {
+        qrScanner.clear().catch(err => console.error("Failed to clear QR scanner", err));
+        setQrScanner(null);
+      }
+    }
+  }, [activeTab]); // Re-initialize scanner when activeTab changes
 
   const fetchUniqueCodes = async () => {
     try {
@@ -45,9 +88,6 @@ function StaffDashboard({ user }) {
   const fetchStaffEntries = async () => {
     try {
       const token = localStorage.getItem('token');
-      // For staff, the backend's /api/inventory GET route will implicitly filter by req.user.id
-      // if no specific staffId filter is provided in query params.
-      // So, we just fetch all entries for the logged-in staff.
       const res = await axios.get('/api/inventory', {
         headers: {
           Authorization: `Bearer ${token}`
@@ -59,7 +99,7 @@ function StaffDashboard({ user }) {
     }
   };
 
-  const { binId, bookQuantity, actualQuantity, notes, location, uniqueCode, pincode } = formData;
+  const { binId, bookQuantity, actualQuantity, notes, location, uniqueCode, pincode, qrCode } = formData; // Include qrCode
 
   const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -105,7 +145,8 @@ function StaffDashboard({ user }) {
         notes: '',
         location: '',
         uniqueCode: '',
-        pincode: ''
+        pincode: '',
+        qrCode: '' // Reset QR code field
       });
       // Refresh staff entries if on the ticket status tab
       if (activeTab === 'ticketStatus') {
@@ -259,6 +300,22 @@ function StaffDashboard({ user }) {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
+
+              {/* QR Code Scan Section */}
+              <div className="mb-4">
+                <label htmlFor="qrCode" className="block text-gray-700 font-medium mb-2">Ask manager to scan in the label</label>
+                <input
+                  type="text"
+                  id="qrCode"
+                  name="qrCode"
+                  value={qrCode}
+                  onChange={onChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Scan QR code here"
+                  readOnly // Make it read-only as it's populated by scanner
+                />
+                <div id="qr-reader" className="mt-2" style={{ width: '100%' }}></div>
+              </div>
               
               <div className="mb-6">
                 <label htmlFor="notes" className="block text-gray-700 font-medium mb-2">Notes (optional)</label>
@@ -283,7 +340,7 @@ function StaffDashboard({ user }) {
           </>
         )}
 
-        {/* Ticket Status Tab Content */}
+        {/* Ticket Status Tab Content (from previous modification) */}
         {activeTab === 'ticketStatus' && (
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <h3 className="text-xl font-semibold mb-4 p-4">Your Submitted Entries</h3>
