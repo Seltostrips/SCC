@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 
@@ -11,35 +11,14 @@ export default function Login() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [location, setLocation] = useState(null);
-  const [locationLoading, setLocationLoading] = useState(false);
+  // Removed location and locationLoading states
   const router = useRouter();
 
-  const { email, password, role, pincode } = formData; // Include role in destructuring
+  const { email, password, role, pincode } = formData;
 
   const onChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  const getLocation = () => {
-    setLocationLoading(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          });
-          setLocationLoading(false);
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-          setLocationLoading(false);
-        }
-      );
-    } else {
-      console.error('Geolocation is not supported by this browser.');
-      setLocationLoading(false);
-    }
-  };
+  // Removed getLocation function
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -47,19 +26,12 @@ export default function Login() {
     setError('');
     
     try {
-      // Get location if not already obtained
-      if (!location && !locationLoading) {
-        getLocation();
-        setLoading(false);
-        return;
-      }
-      
       const loginData = {
         email,
         password,
-        role, // Include role in login data
+        role,
         ...(pincode && { pincode }),
-        ...(location && { location })
+        // Removed location from loginData
       };
       
       const res = await axios.post('/api/auth/login', loginData);
@@ -68,7 +40,6 @@ export default function Login() {
       
       const user = res.data.user;
       
-      // Redirect based on user role
       if (user.role === 'staff') {
         router.push('/staff');
       } else if (user.role === 'client') {
@@ -80,7 +51,7 @@ export default function Login() {
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError(err.response?.data?.message || 'Login failed');
+      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -122,7 +93,6 @@ export default function Login() {
                 onChange={onChange}
               />
             </div>
-            {/* New Role Dropdown */}
             <div>
               <label htmlFor="role" className="block text-sm font-medium text-gray-700">Login As</label>
               <select
@@ -154,21 +124,7 @@ export default function Login() {
 
           {error && <div className="text-red-500 text-center">{error}</div>}
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <input
-                id="location-permission"
-                type="checkbox"
-                checked={locationLoading || !!location}
-                onChange={getLocation}
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-              />
-              <label htmlFor="location-permission" className="ml-2 block text-sm text-gray-900">
-                Share location
-              </label>
-            </div>
-            {locationLoading && <span className="text-sm text-gray-500">Getting location...</span>}
-          </div>
+          {/* Removed Geolocation checkbox */}
 
           <div>
             <button
