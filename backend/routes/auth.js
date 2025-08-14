@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/User');
+const auth = require('../middleware/auth'); // Add this import
 
 // Middleware to check MongoDB connection
 const checkDBConnection = (req, res, next) => {
@@ -52,7 +53,7 @@ router.post('/register', checkDBConnection, async (req, res) => {
           pincode: location.pincode
         }
       }),
-      isApproved: role === 'admin' // Admins are auto-approved
+      isApproved: role === 'admin' // Admins are approved by default
     });
     
     // Hash password
@@ -162,7 +163,7 @@ router.post('/login', checkDBConnection, async (req, res) => {
 });
 
 // Get current user
-router.get('/me', checkDBConnection, async (req, res) => {
+router.get('/me', [auth, checkDBConnection], async (req, res) => {
   try {
     const token = req.header('Authorization').replace('Bearer ', '');
     
