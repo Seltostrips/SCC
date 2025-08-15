@@ -174,7 +174,7 @@ router.get('/all-users', [auth, checkDBConnection], async (req, res) => {
     res.json(users);
   } catch (err) {
     console.error('Error fetching all users:', err.message);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).send('Server error');
   }
 });
 
@@ -203,7 +203,7 @@ router.get('/login-logs', [auth, checkDBConnection], async (req, res) => {
     res.json(loginLogs);
   } catch (err) {
     console.error('Error fetching login logs:', err.message);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).send('Server error');
   }
 });
 
@@ -249,7 +249,7 @@ router.put('/update-user-details/:userId', [auth, checkDBConnection], async (req
     });
   } catch (err) {
     console.error('Error updating user details:', err.message);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).send('Server error');
   }
 });
 
@@ -292,7 +292,7 @@ router.post('/approve/:userId', [auth, checkDBConnection], async (req, res) => {
     res.json({ message: 'User approved successfully' });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error' });
+    res.status(500).send('Server error');
   }
 });
 
