@@ -15,18 +15,15 @@ function MyApp({ Component, pageProps }) {
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem('token');
-
       if (token) {
         try {
           // Add a console log here to see the token being sent
           console.log("Token sent to /api/auth/me:", token);
-
           const res = await axios.get('/api/auth/me', {
             headers: {
               Authorization: `Bearer ${token}`
             }
           });
-
           console.log("Auth successful:", res.data);
           // Handle both response structures: { user: ... } and direct user object
           const userData = res.data.user || res.data;
@@ -39,8 +36,23 @@ function MyApp({ Component, pageProps }) {
             if (socket) {
               socket.disconnect();
             }
+            
+            // Get the backend URL without the protocol for socket.io
+            const backendUrl = process.env.NEXT_PUBLIC_API_URL.replace(/^https?:\/\//, '');
+            
+            socket = io(`https://${backendUrl}`, {
+              transports: ['websocket', 'polling'],
+              timeout: 5000,
+              forceNew: true
+            });
 
-            socket = io(process.env.NEXT_PUBLIC_API_URL);
+            socket.on('connect', () => {
+              console.log('Socket connected successfully');
+            });
+
+            socket.on('connect_error', (err) => {
+              console.log('Socket connection error:', err.message);
+            });
 
             // Join role-based room and a personal room for user-specific notifications
             socket.emit('join-room', userData.role);
@@ -94,10 +106,8 @@ function MyApp({ Component, pageProps }) {
         setUser(null);
         if (socket) socket.disconnect(); // Disconnect socket if no token
       }
-
       setLoading(false);
     };
-
     checkAuth();
   }, [router.pathname]); // Depend on router.pathname to re-check auth on route changes
 
@@ -115,10 +125,7 @@ function MyApp({ Component, pageProps }) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mx-auto"></div>
-          <p className="mt-4">Loading...</p>
-        </div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-500"></div>
       </div>
     );
   }
@@ -126,27 +133,38 @@ function MyApp({ Component, pageProps }) {
   return (
     <div>
       {showNavbar && (
-        <nav className="bg-gray-800 text-white p-4">
-          <div className="container mx-auto flex justify-between">
-            <div>Inventory Audit Control Portal</div>
-            <div>
-              <span className="mr-4">Welcome, {user.name} ({user.role})</span>
-              <button onClick={logout} className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-                Logout
-              </button>
+        <nav className="bg-white shadow">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between h-16">
+              <div className="flex">
+                <div className="flex-shrink-0 flex items-center">
+                  <h1 className="text-xl font-bold text-gray-900">Inventory Audit Control Portal</h1>
+                </div>
+              </div>
+              <div className="flex items-center">
+                <span className="text-gray-700 mr-4">
+                  Welcome, {user.name} ({user.role})
+                </span>
+                <button
+                  onClick={logout}
+                  className="ml-3 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Logout
+                </button>
+              </div>
             </div>
           </div>
         </nav>
       )}
 
       {authError && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <strong className="font-bold">Authentication Error: </strong>
-          <span className="block sm:inline">{authError}</span>
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+          <strong className="font-bold">Authentication Error:</strong>
+          <span className="block sm:inline"> {authError}</span>
         </div>
       )}
 
-      <Component {...pageProps} user={user} setUser={setUser} />
+      <Component {...pageProps} user={user} />
     </div>
   );
 }
