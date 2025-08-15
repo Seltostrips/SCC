@@ -1,30 +1,48 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
+import axios from 'axios';
 
-export default function Home({ user }) {
+export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    // If user is logged in, redirect to the appropriate dashboard
-    if (user) {
-      if (user.role === 'staff') {
-        router.push('/staff');
-      } else if (user.role === 'client') {
-        router.push('/client');
-      } else if (user.role === 'admin') {
-        router.push('/admin');
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const res = await axios.get('/api/auth/me', {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
+          
+          // If authenticated, redirect based on role
+          const user = res.data.user || res.data;
+          if (user.role === 'admin') {
+            router.push('/admin');
+          } else if (user.role === 'staff') {
+            router.push('/staff');
+          } else if (user.role === 'client') {
+            router.push('/client');
+          }
+        } catch (err) {
+          // If token is invalid, redirect to login
+          router.push('/login');
+        }
+      } else {
+        // If no token, redirect to login
+        router.push('/login');
       }
-    } else {
-      // If no user, redirect to login
-      router.push('/login');
-    }
-  }, [user, router]);
+    };
+
+    checkAuth();
+  }, [router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Inventory Audit Control Portal</h1>
-        <p className="text-lg text-gray-600">Redirecting...</p>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-500 mx-auto"></div>
+        <p className="mt-4 text-gray-600">Redirecting to login...</p>
       </div>
     </div>
   );
