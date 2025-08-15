@@ -15,30 +15,33 @@ function MyApp({ Component, pageProps }) {
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem('token');
-      
+
       if (token) {
         try {
+          // Add a console log here to see the token being sent
+          console.log("Token sent to /api/auth/me:", token);
+
           const res = await axios.get('/api/auth/me', {
             headers: {
               Authorization: `Bearer ${token}`
             }
           });
-          
+
           console.log("Auth successful:", res.data);
           // Handle both response structures: { user: ... } and direct user object
           const userData = res.data.user || res.data;
           setUser(userData);
           setAuthError(null);
-          
+
           // Initialize socket connection
           if (typeof window !== 'undefined') {
             // Disconnect existing socket if any
             if (socket) {
               socket.disconnect();
             }
-            
+
             socket = io(process.env.NEXT_PUBLIC_API_URL);
-            
+
             // Join role-based room and a personal room for user-specific notifications
             socket.emit('join-room', userData.role);
             socket.emit('join-room', userData._id); // Join a room specific to the user's ID
@@ -49,7 +52,7 @@ function MyApp({ Component, pageProps }) {
                 alert('New inventory entry requires your review!');
               });
             }
-            
+
             // Listen for entry updates (for staff)
             if (userData.role === 'staff') {
               socket.on(`entry-updated-${userData._id}`, (entry) => { // Listen on specific staff ID
@@ -81,7 +84,7 @@ function MyApp({ Component, pageProps }) {
             }
           }
         } catch (err) {
-          console.error('Auth error:', err.response?.data);
+          console.error('Auth error:', err.response?.data || err.message); // More detailed error logging
           setAuthError(err.response?.data?.message || 'Authentication failed');
           localStorage.removeItem('token');
           setUser(null);
@@ -91,7 +94,7 @@ function MyApp({ Component, pageProps }) {
         setUser(null);
         if (socket) socket.disconnect(); // Disconnect socket if no token
       }
-      
+
       setLoading(false);
     };
 
@@ -135,14 +138,14 @@ function MyApp({ Component, pageProps }) {
           </div>
         </nav>
       )}
-      
+
       {authError && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
           <strong className="font-bold">Authentication Error: </strong>
           <span className="block sm:inline">{authError}</span>
         </div>
       )}
-      
+
       <Component {...pageProps} user={user} setUser={setUser} />
     </div>
   );
