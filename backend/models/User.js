@@ -52,4 +52,5 @@ const UserSchema = new mongoose.Schema({
   }
 });
 
-module.exports = mongoose.model('User ', UserSchema);
+// FIX: Changed 'User ' to 'User' to ensure Mongoose creates/uses the 'users' collection by default.
+module.exports = mongoose.model('User', UserSchema);
