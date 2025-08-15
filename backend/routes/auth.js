@@ -1,26 +1,22 @@
 // File: routes/auth.js
+// SCC-main(4)/SCC-main/backend/routes/auth.js
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const { checkDBConnection } = require('../middleware/db'); // Corrected path and uncommented
+const auth = require('../middleware/auth');
+const router = express.Router();
+// ... rest of your auth.js code
 
-    // SCC-main(4)/SCC-main/backend/routes/auth.js
-    const express = require('express');
-    const bcrypt = require('bcryptjs');
-    const jwt = require('jsonwebtoken');
-    const User = require('../models/User');
-    const { checkDBConnection } = require('../middleware/db'); // Corrected path and uncommented
-    const auth = require('../middleware/auth');
-
-    const router = express.Router();
-
-    // ... rest of your auth.js code
-    
 // Register
 router.post('/register', checkDBConnection, async (req, res) => {
   const { name, email, password, role, phone, company, uniqueCode, location, pincode } = req.body;
-
   try {
     // Check if user already exists
     let user = await User.findOne({ email });
     if (user) {
-      return res.status(400).json({ message: 'User  already exists' });
+      return res.status(400).json({ message: 'User already exists' });
     }
 
     // Validate role-specific fields for client registration
@@ -43,9 +39,9 @@ router.post('/register', checkDBConnection, async (req, res) => {
       password,
       role,
       phone,
-      ...(role === 'client' && { 
-        company, 
-        uniqueCode, 
+      ...(role === 'client' && {
+        company,
+        uniqueCode,
         location: {
           city: location.city,
           pincode: location.pincode
@@ -71,7 +67,7 @@ router.post('/register', checkDBConnection, async (req, res) => {
       // TODO: Send notification to admin for approval
     }
 
-    res.status(201).json({ 
+    res.status(201).json({
       message: role === 'admin' ? 'Admin registration successful. Awaiting approval.' : 'Registration successful. Please wait for admin approval.',
       user: {
         id: user.id,
@@ -90,14 +86,12 @@ router.post('/register', checkDBConnection, async (req, res) => {
 // Login
 router.post('/login', checkDBConnection, async (req, res) => {
   const { email, password, role } = req.body;
-
   console.log('Login attempt:', { email, password, role }); // Log incoming data
-
   try {
     // Find user
     let user = await User.findOne({ email });
     if (!user) {
-      console.log('User  not found'); // Log if user is not found
+      console.log('User not found'); // Log if user is not found
       return res.status(400).json({ message: 'Invalid credentials: User not found' });
     }
 
@@ -109,7 +103,7 @@ router.post('/login', checkDBConnection, async (req, res) => {
 
     // Check if user is approved
     if (!user.isApproved) {
-      console.log('User  is not approved'); // Log if user is not approved
+      console.log('User is not approved'); // Log if user is not approved
       return res.status(401).json({ message: 'Your account is pending approval' });
     }
 
@@ -128,14 +122,42 @@ router.post('/login', checkDBConnection, async (req, res) => {
     const payload = { id: user.id, role: user.role };
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1d' }, (err, token) => {
       if (err) throw err;
-      res.json({ 
-        token, 
-        user: { id: user.id, name: user.name, email: user.email, role: user.role } 
+      res.json({
+        token,
+        user: { id: user.id, name: user.name, email: user.email, role: user.role }
       });
     });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
+  }
+});
+
+// Get current user info (me endpoint)
+router.get('/me', [auth, checkDBConnection], async (req, res) => {
+  try {
+    // The auth middleware already attaches the user to req.user
+    const user = await User.findById(req.user.id).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      isApproved: user.isApproved,
+      phone: user.phone,
+      company: user.company,
+      uniqueCode: user.uniqueCode,
+      location: user.location,
+      lastLogin: user.lastLogin
+    });
+  } catch (error) {
+    console.error('Get user error:', error.message);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -151,7 +173,7 @@ router.get('/pending-approvals', [auth, checkDBConnection], async (req, res) => 
 
     // Include pending admins as well
     const pendingAdmins = await User.find({ isApproved: false, role: 'admin' }).select('-password');
-    
+
     res.json([...pendingUsers, ...pendingAdmins]);
   } catch (err) {
     console.error(err.message);
@@ -168,15 +190,14 @@ router.post('/approve/:userId', [auth, checkDBConnection], async (req, res) => {
 
     const user = await User.findById(req.params.userId);
     if (!user) {
-      return res.status(404).json({ message: 'User  not found' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     user.isApproved = true;
     await user.save();
 
     // TODO: Send notification to user about approval
-
-    res.json({ message: 'User  approved successfully' });
+    res.json({ message: 'User approved successfully' });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
@@ -184,7 +205,3 @@ router.post('/approve/:userId', [auth, checkDBConnection], async (req, res) => {
 });
 
 module.exports = router;
-
-
-
-
