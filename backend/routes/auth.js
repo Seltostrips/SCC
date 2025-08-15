@@ -1,14 +1,17 @@
 // File: routes/auth.js
 
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // Adjust the path as necessary
-const { checkDBConnection } = require('../middleware/db'); // Adjust the path as necessary
-const auth = require('../middleware/auth'); // Adjust the path as necessary
+    // SCC-main(4)/SCC-main/backend/routes/auth.js
+    const express = require('express');
+    const bcrypt = require('bcryptjs');
+    const jwt = require('jsonwebtoken');
+    const User = require('../models/User');
+    const { checkDBConnection } = require('../middleware/db'); // Corrected path and uncommented
+    const auth = require('../middleware/auth');
 
-const router = express.Router();
+    const router = express.Router();
 
+    // ... rest of your auth.js code
+    
 // Register
 router.post('/register', checkDBConnection, async (req, res) => {
   const { name, email, password, role, phone, company, uniqueCode, location, pincode } = req.body;
@@ -181,6 +184,7 @@ router.post('/approve/:userId', [auth, checkDBConnection], async (req, res) => {
 });
 
 module.exports = router;
+
 
 
 
