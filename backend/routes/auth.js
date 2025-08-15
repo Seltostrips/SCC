@@ -207,7 +207,7 @@ router.get('/login-logs', [auth, checkDBConnection], async (req, res) => {
   }
 });
 
-// Update user details (admin only) - NEW ENDPOINT
+// Update user details (admin only) - UPDATED ENDPOINT
 router.put('/update-user-details/:userId', [auth, checkDBConnection], async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -215,26 +215,38 @@ router.put('/update-user-details/:userId', [auth, checkDBConnection], async (req
     }
 
     const { userId } = req.params;
-    const { company, city } = req.body;
+    const { company, city, assignedClients } = req.body;
 
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Update user details
-    if (company && user.role === 'client') {
-      user.company = company;
-    }
-    
-    if (city && user.role === 'client') {
-      if (!user.location) {
-        user.location = {};
+    // Update user details based on role
+    if (user.role === 'client') {
+      if (company) user.company = company;
+      if (city) {
+        if (!user.location) user.location = {};
+        user.location.city = city;
       }
-      user.location.city = city;
+    } else if (user.role === 'staff') {
+      // Update assigned clients for staff
+      if (assignedClients && Array.isArray(assignedClients)) {
+        // Validate that all assigned clients are actually clients
+        const clients = await User.find({ 
+          _id: { $in: assignedClients },
+          role: 'client',
+          isApproved: true
+        });
+        
+        user.assignedClients = clients.map(client => client._id);
+      }
     }
 
     await user.save();
+
+    // Populate assigned clients for response
+    await user.populate('assignedClients', 'name company uniqueCode');
 
     res.json({
       message: 'User details updated successfully',
@@ -244,7 +256,8 @@ router.put('/update-user-details/:userId', [auth, checkDBConnection], async (req
         email: user.email,
         role: user.role,
         company: user.company,
-        location: user.location
+        location: user.location,
+        assignedClients: user.assignedClients
       }
     });
   } catch (err) {
@@ -297,3 +310,4 @@ router.post('/approve/:userId', [auth, checkDBConnection], async (req, res) => {
 });
 
 module.exports = router;
+
