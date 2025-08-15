@@ -1,8 +1,5 @@
-// File: models/User.js
-
 const mongoose = require('mongoose');
-
-const UserSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true
@@ -18,39 +15,36 @@ const UserSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['staff', 'client', 'admin'],
+    enum: ['admin', 'client', 'staff'],
     required: true
+  },
+  isApproved: {
+    type: Boolean,
+    default: false
   },
   phone: {
     type: String
   },
   company: {
-    type: String,
-    required: function() { return this.role === 'client'; } // Required for clients only
+    type: String
   },
   uniqueCode: {
-    type: String,
-    required: function() { return this.role === 'client'; } // Required for clients only
+    type: String
   },
   location: {
-    city: {
-      type: String,
-      required: function() { return this.role === 'client'; } // Required for clients only
-    },
-    pincode: {
-      type: String,
-      required: function() { return this.role === 'client'; } // Required for clients only
-    }
+    city: String,
+    pincode: String
   },
-  isApproved: {
-    type: Boolean,
-    default: false // Default to false for all new users
+  lastLogin: {
+    timestamp: Date
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
+  // NEW: Add assigned clients for staff
+  assignedClients: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }]
+}, {
+  timestamps: true
 });
 
-// FIX: Changed 'User ' to 'User' to ensure Mongoose creates/uses the 'users' collection by default.
-module.exports = mongoose.model('User', UserSchema);
+module.exports = mongoose.model('User', userSchema);
