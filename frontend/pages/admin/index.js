@@ -8,10 +8,11 @@ function AdminDashboard({ user }) {
   const [pendingApprovals, setPendingApprovals] = useState([]);
   const [loginLogs, setLoginLogs] = useState([]);
   const [allUsers, setAllUsers] = useState([]); // New state for all users
-  const [editingUser , setEditingUser ] = useState(null); // State for user being edited
+  const [editingUser, setEditingUser] = useState(null); // State for user being edited
   const [editCompany, setEditCompany] = useState('');
   const [editCity, setEditCity] = useState('');
-
+  const [editAssignedClients, setEditAssignedClients] = useState([]); // New state for assigned clients
+  const [availableClients, setAvailableClients] = useState([]); // New state for available clients
   const [filters, setFilters] = useState({
     startDate: '',
     endDate: '',
@@ -32,8 +33,24 @@ function AdminDashboard({ user }) {
       fetchLoginLogs();
     } else if (activeTab === 'user-management') { // New tab
       fetchAllUsers();
+      fetchAvailableClients(); // Fetch available clients when tab is active
     }
   }, [activeTab]);
+
+  // New function to fetch available clients
+  const fetchAvailableClients = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get('/api/auth/all-users', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // Filter only approved clients
+      const clients = res.data.filter(u => u.role === 'client' && u.isApproved);
+      setAvailableClients(clients);
+    } catch (err) {
+      console.error('Error fetching available clients:', err);
+    }
+  };
 
   const fetchEntries = async () => {
     try {
@@ -80,21 +97,21 @@ function AdminDashboard({ user }) {
   };
 
   const fetchLoginLogs = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get('/api/auth/login-logs', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        console.log('Fetched Login Logs:', res.data); // Debug log
-        setLoginLogs(res.data);
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching login logs:', err);
-        setLoading(false);
-      }
-    };
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get('/api/auth/login-logs', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      console.log('Fetched Login Logs:', res.data); // Debug log
+      setLoginLogs(res.data);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching login logs:', err);
+      setLoading(false);
+    }
+  };
 
   const fetchAllUsers = async () => {
     try {
@@ -112,33 +129,62 @@ function AdminDashboard({ user }) {
     }
   };
 
-  const handleEditUser  = (userToEdit) => {
-    setEditingUser (userToEdit);
+  const handleEditUser = (userToEdit) => {
+    setEditingUser(userToEdit);
     setEditCompany(userToEdit.company || '');
     setEditCity(userToEdit.location?.city || '');
+    
+    if (userToEdit.role === 'staff') {
+      // Set assigned clients (convert object IDs to strings for the select)
+      setEditAssignedClients(
+        userToEdit.assignedClients?.map(client => 
+          typeof client === 'object' ? client._id : client
+        ) || []
+      );
+    } else {
+      setEditAssignedClients([]);
+    }
   };
 
-  // CORRECTED: Changed function name from 'handleSaveUser Changes' to 'handleSaveUserChanges'
+  // Updated to handle client assignments for staff
   const handleSaveUserChanges = async () => {
-    if (!editingUser ) return;
-
+    if (!editingUser) return;
+    
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`/api/auth/update-user-details/${editingUser ._id}`, { // New API endpoint
-        company: editCompany,
-        city: editCity
-      }, {
+      const updateData = {};
+      
+      if (editingUser.role === 'client') {
+        updateData.company = editCompany;
+        updateData.city = editCity;
+      } else if (editingUser.role === 'staff') {
+        updateData.assignedClients = editAssignedClients;
+      }
+      
+      await axios.put(`/api/auth/update-user-details/${editingUser._id}`, updateData, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
-      alert('User  details updated successfully!');
-      setEditingUser (null); // Exit editing mode
+      
+      alert('User details updated successfully!');
+      setEditingUser(null); // Exit editing mode
       fetchAllUsers(); // Refresh the list
     } catch (err) {
       console.error('Error saving user changes:', err);
       alert(err.response?.data?.message || 'Error saving user changes.');
     }
+  };
+
+  // New function to handle client assignment changes
+  const handleClientAssignmentChange = (clientId) => {
+    setEditAssignedClients(prev => {
+      if (prev.includes(clientId)) {
+        return prev.filter(id => id !== clientId);
+      } else {
+        return [...prev, clientId];
+      }
+    });
   };
 
   const handleFilterChange = (e) => {
@@ -169,7 +215,7 @@ function AdminDashboard({ user }) {
     }, 100);
   };
 
-  const handleApproveUser  = async (userId) => {
+  const handleApproveUser = async (userId) => {
     try {
       const token = localStorage.getItem('token');
       await axios.post(`/api/auth/approve/${userId}`, {}, {
@@ -180,7 +226,7 @@ function AdminDashboard({ user }) {
       
       // Refresh the list
       fetchPendingApprovals();
-      alert('User  approved successfully');
+      alert('User approved successfully');
     } catch (err) {
       console.error('Error approving user:', err);
       alert('Error approving user');
@@ -193,7 +239,6 @@ function AdminDashboard({ user }) {
       alert('No login logs to export.');
       return;
     }
-
     const csvData = loginLogs.map(log => ({
       Name: log.name || 'N/A',
       Email: log.email || 'N/A',
@@ -480,7 +525,7 @@ function AdminDashboard({ user }) {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
-                            onClick={() => handleApproveUser (user._id)}
+                            onClick={() => handleApproveUser(user._id)}
                             className="text-indigo-600 hover:text-indigo-900"
                           >
                             Approve
@@ -550,7 +595,7 @@ function AdminDashboard({ user }) {
             )}
           </div>
         )}
-
+        
         {/* User Management Tab */}
         {activeTab === 'user-management' && (
           <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -573,6 +618,7 @@ function AdminDashboard({ user }) {
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unique Code</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approved</th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned Clients</th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                     </tr>
                   </thead>
@@ -590,16 +636,24 @@ function AdminDashboard({ user }) {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {userItem.isApproved ? 'Yes' : 'No'}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {userItem.role === 'staff' && userItem.assignedClients ? (
+                            <div>
+                              {userItem.assignedClients.map(client => 
+                                typeof client === 'object' ? client.name : 'Client'
+                              ).join(', ')}
+                            </div>
+                          ) : 'N/A'}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          {userItem.role === 'client' && ( // Only allow editing for clients for now
+                          {(userItem.role === 'client' || userItem.role === 'staff') && (
                             <button
-                              onClick={() => handleEditUser (userItem)}
+                              onClick={() => handleEditUser(userItem)}
                               className="text-indigo-600 hover:text-indigo-900 mr-3"
                             >
                               Edit
                             </button>
                           )}
-                          {/* Add other actions like delete if needed */}
                         </td>
                       </tr>
                     ))}
@@ -609,43 +663,69 @@ function AdminDashboard({ user }) {
             )}
           </div>
         )}
-
+        
         {/* Edit User Modal */}
-        {editingUser  && (
+        {editingUser && (
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center">
             <div className="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
-              <h3 className="text-xl font-semibold mb-4">Edit User: {editingUser .name}</h3>
-              <div className="mb-4">
-                <label htmlFor="editCompany" className="block text-sm font-medium text-gray-700">Company Name</label>
-                <input
-                  type="text"
-                  id="editCompany"
-                  value={editCompany}
-                  onChange={(e) => setEditCompany(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  // Removed 'disabled' attribute to allow editing
-                />
-              </div>
-              <div className="mb-4">
-                <label htmlFor="editCity" className="block text-sm font-medium text-gray-700">City</label>
-                <input
-                  type="text"
-                  id="editCity"
-                  value={editCity}
-                  onChange={(e) => setEditCity(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  // Removed 'disabled' attribute to allow editing
-                />
-              </div>
+              <h3 className="text-xl font-semibold mb-4">Edit User: {editingUser.name}</h3>
+              
+              {editingUser.role === 'client' && (
+                <>
+                  <div className="mb-4">
+                    <label htmlFor="editCompany" className="block text-sm font-medium text-gray-700">Company Name</label>
+                    <input
+                      type="text"
+                      id="editCompany"
+                      value={editCompany}
+                      onChange={(e) => setEditCompany(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label htmlFor="editCity" className="block text-sm font-medium text-gray-700">City</label>
+                    <input
+                      type="text"
+                      id="editCity"
+                      value={editCity}
+                      onChange={(e) => setEditCity(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    />
+                  </div>
+                </>
+              )}
+
+              {editingUser.role === 'staff' && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Assigned Clients</label>
+                  <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
+                    {availableClients.map(client => (
+                      <div key={client._id} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id={`client-${client._id}`}
+                          checked={editAssignedClients.includes(client._id)}
+                          onChange={() => handleClientAssignmentChange(client._id)}
+                          className="mr-2"
+                        />
+                        <label htmlFor={`client-${client._id}`} className="text-sm">
+                          {client.name} ({client.company})
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               <div className="flex justify-end space-x-3">
                 <button
-                  onClick={() => setEditingUser (null)}
+                  onClick={() => setEditingUser(null)}
                   className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleSaveUserChanges} // Corrected function call
+                  onClick={handleSaveUserChanges}
                   className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
                   Save Changes
