@@ -1,3 +1,4 @@
+// SCC-main/SCC-main/backend/routes/auth.js
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
@@ -14,7 +15,7 @@ const checkDBConnection = (req, res, next) => {
   next();
 };
 
-// Register
+// Register (no changes here)
 router.post('/register', checkDBConnection, async (req, res) => {
   const { name, email, password, role, phone, company, uniqueCode, location, pincode } = req.body;
   
@@ -89,6 +90,10 @@ router.post('/login', checkDBConnection, async (req, res) => {
   const { email, password, role, pincode } = req.body;
   
   try {
+    // --- ADD THIS CONSOLE.LOG ---
+    console.log('Backend received login request for email:', email, 'with role:', role);
+    // --- END ADDITION ---
+
     // Find user
     let user = await User.findOne({ email });
     if (!user) {
@@ -97,6 +102,9 @@ router.post('/login', checkDBConnection, async (req, res) => {
 
     // Verify that the user's actual role matches the role they selected for login
     if (user.role !== role) {
+      // --- ADD THIS CONSOLE.LOG FOR DEBUGGING ---
+      console.log(`Role mismatch: User in DB is '${user.role}', received role is '${role}'`);
+      // --- END ADDITION ---
       return res.status(400).json({ message: `You are registered as a ${user.role}, please select the correct role to log in.` });
     }
     
@@ -164,7 +172,7 @@ router.post('/login', checkDBConnection, async (req, res) => {
   }
 });
 
-// Get current user
+// Get current user (no changes here)
 router.get('/me', [auth, checkDBConnection], async (req, res) => {
   try {
     const token = req.header('Authorization').replace('Bearer ', '');
@@ -187,7 +195,7 @@ router.get('/me', [auth, checkDBConnection], async (req, res) => {
   }
 });
 
-// Approve user (admin only)
+// Approve user (admin only) (no changes here)
 router.post('/approve/:userId', [auth, checkDBConnection], async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -211,7 +219,7 @@ router.post('/approve/:userId', [auth, checkDBConnection], async (req, res) => {
   }
 });
 
-// Get pending approvals (admin only)
+// Get pending approvals (admin only) (no changes here)
 router.get('/pending-approvals', [auth, checkDBConnection], async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -228,7 +236,7 @@ router.get('/pending-approvals', [auth, checkDBConnection], async (req, res) => 
   }
 });
 
-// Get user login logs (admin only)
+// Get user login logs (admin only) (no changes here)
 router.get('/login-logs', [auth, checkDBConnection], async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -245,7 +253,7 @@ router.get('/login-logs', [auth, checkDBConnection], async (req, res) => {
   }
 });
 
-// New: Get all users (admin only)
+// New: Get all users (admin only) (no changes here)
 router.get('/all-users', [auth, checkDBConnection], async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -262,7 +270,7 @@ router.get('/all-users', [auth, checkDBConnection], async (req, res) => {
   }
 });
 
-// New: Update user details (admin only)
+// New: Update user details (admin only) (no changes here)
 router.put('/update-user-details/:userId', [auth, checkDBConnection], async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
