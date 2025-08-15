@@ -7,7 +7,6 @@ const User = require('../models/User');
 const { checkDBConnection } = require('../middleware/db'); // Corrected path and uncommented
 const auth = require('../middleware/auth');
 const router = express.Router();
-// ... rest of your auth.js code
 
 // Register
 router.post('/register', checkDBConnection, async (req, res) => {
@@ -161,6 +160,99 @@ router.get('/me', [auth, checkDBConnection], async (req, res) => {
   }
 });
 
+// Get all users (admin only) - NEW ENDPOINT
+router.get('/all-users', [auth, checkDBConnection], async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    const users = await User.find({})
+      .select('-password')
+      .sort({ createdAt: -1 });
+
+    res.json(users);
+  } catch (err) {
+    console.error('Error fetching all users:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get login logs (admin only) - NEW ENDPOINT
+router.get('/login-logs', [auth, checkDBConnection], async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    // Fetch users with their login information
+    const users = await User.find({})
+      .select('name email role lastLogin createdAt')
+      .sort({ 'lastLogin.timestamp': -1 });
+
+    // Transform user data into login log format
+    const loginLogs = users.map(user => ({
+      userId: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      lastLogin: user.lastLogin?.timestamp || null,
+      accountCreated: user.createdAt
+    }));
+
+    res.json(loginLogs);
+  } catch (err) {
+    console.error('Error fetching login logs:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update user details (admin only) - NEW ENDPOINT
+router.put('/update-user-details/:userId', [auth, checkDBConnection], async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+
+    const { userId } = req.params;
+    const { company, city } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update user details
+    if (company && user.role === 'client') {
+      user.company = company;
+    }
+    
+    if (city && user.role === 'client') {
+      if (!user.location) {
+        user.location = {};
+      }
+      user.location.city = city;
+    }
+
+    await user.save();
+
+    res.json({
+      message: 'User details updated successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        company: user.company,
+        location: user.location
+      }
+    });
+  } catch (err) {
+    console.error('Error updating user details:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get pending approvals (admin only)
 router.get('/pending-approvals', [auth, checkDBConnection], async (req, res) => {
   try {
@@ -200,7 +292,7 @@ router.post('/approve/:userId', [auth, checkDBConnection], async (req, res) => {
     res.json({ message: 'User approved successfully' });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).send('Server error' });
   }
 });
 
