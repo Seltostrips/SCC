@@ -13,7 +13,6 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-
   const { email, password, role, pincode } = formData;
 
   const onChange = (e) => {
@@ -24,7 +23,6 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setError(''); // Clear previous errors
-    
     try {
       const loginData = {
         email,
@@ -33,29 +31,32 @@ export default function Login() {
         ...(pincode && { pincode }), // Pincode is optional for staff/admin, required for client
       };
       
-      // --- ADD THIS CONSOLE.LOG ---
       console.log('Frontend sending login data:', loginData);
-      // --- END ADDITION ---
-
-      const res = await axios.post('/api/auth/login', loginData);
       
+      const res = await axios.post('/api/auth/login', loginData);
       localStorage.setItem('token', res.data.token);
+      
+      // Set axios default header for future requests
+      axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
       
       const user = res.data.user;
       
-      // Redirect based on user role
-      if (user.role === 'staff') {
-        router.push('/staff');
-      } else if (user.role === 'client') {
-        router.push('/client');
-      } else if (user.role === 'admin') {
-        router.push('/admin');
-      } else {
-        setError('Invalid user role received from server.');
-      }
+      // Force a small delay to ensure localStorage is set
+      setTimeout(() => {
+        // Redirect based on user role
+        if (user.role === 'staff') {
+          window.location.href = '/staff'; // Use window.location for hard redirect
+        } else if (user.role === 'client') {
+          window.location.href = '/client';
+        } else if (user.role === 'admin') {
+          window.location.href = '/admin';
+        } else {
+          setError('Invalid user role received from server.');
+        }
+      }, 100);
+      
     } catch (err) {
       console.error('Login error:', err.response?.data || err.message);
-      // Display the specific message from the backend if available
       setError(err.response?.data?.message || 'Login failed. Please check your credentials and selected role.');
     } finally {
       setLoading(false);
@@ -66,12 +67,16 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Sign in to your account</h2>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Sign in to your account
+          </h2>
         </div>
         <form className="mt-8 space-y-6" onSubmit={onSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
-              <label htmlFor="email-address" className="sr-only">Email address</label>
+              <label htmlFor="email-address" className="sr-only">
+                Email address
+              </label>
               <input
                 id="email-address"
                 name="email"
@@ -85,7 +90,9 @@ export default function Login() {
               />
             </div>
             <div>
-              <label htmlFor="password" className="sr-only">Password</label>
+              <label htmlFor="password" className="sr-only">
+                Password
+              </label>
               <input
                 id="password"
                 name="password"
@@ -98,38 +105,48 @@ export default function Login() {
                 onChange={onChange}
               />
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="role" className="block text-sm font-medium text-gray-700">
+              Login As
+            </label>
+            <select
+              id="role"
+              name="role"
+              required
+              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+              value={role}
+              onChange={onChange}
+            >
+              <option value="staff">Staff</option>
+              <option value="client">Client</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+
+          {(role === 'client') && (
             <div>
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700">Login As</label>
-              <select
-                id="role"
-                name="role"
-                required
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                value={role}
-                onChange={onChange}
-              >
-                <option value="staff">Staff</option>
-                <option value="client">Client</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="pincode" className="block text-sm font-medium text-gray-700">Pincode</label>
+              <label htmlFor="pincode" className="block text-sm font-medium text-gray-700">
+                Pincode
+              </label>
               <input
                 id="pincode"
                 name="pincode"
                 type="text"
+                required={role === 'client'}
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Pincode (required for client login)"
+                placeholder="Enter your pincode"
                 value={pincode}
                 onChange={onChange}
               />
             </div>
-          </div>
-
-          {error && <div className="text-red-500 text-center">{error}</div>}
+          )}
 
           <div>
+            {error && (
+              <div className="text-red-500 text-sm mb-4">{error}</div>
+            )}
             <button
               type="submit"
               disabled={loading}
