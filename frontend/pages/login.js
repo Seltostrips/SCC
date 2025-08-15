@@ -1,3 +1,4 @@
+// SCC-main/SCC-main/frontend/pages/login.js
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
@@ -32,6 +33,10 @@ export default function Login() {
         ...(pincode && { pincode }), // Pincode is optional for staff/admin, required for client
       };
       
+      // --- ADD THIS CONSOLE.LOG ---
+      console.log('Frontend sending login data:', loginData);
+      // --- END ADDITION ---
+
       const res = await axios.post('/api/auth/login', loginData);
       
       localStorage.setItem('token', res.data.token);
