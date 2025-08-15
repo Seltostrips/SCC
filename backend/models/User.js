@@ -1,3 +1,5 @@
+// File: models/User.js
+
 const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
@@ -22,7 +24,6 @@ const UserSchema = new mongoose.Schema({
   phone: {
     type: String
   },
-  // New fields
   company: {
     type: String,
     required: function() { return this.role === 'client'; } // Required for clients only
@@ -41,18 +42,9 @@ const UserSchema = new mongoose.Schema({
       required: function() { return this.role === 'client'; } // Required for clients only
     }
   },
-  // Approval status
   isApproved: {
     type: Boolean,
-    default: function() { return this.role === 'admin'; } // Admins are approved by default
-  },
-  // Login tracking
-  lastLogin: {
-    timestamp: Date,
-    location: { // Make location entirely optional within lastLogin
-      type: { type: String, enum: ['Point'], required: false },
-      coordinates: { type: [Number], required: false }
-    }
+    default: false // Default to false for all new users
   },
   createdAt: {
     type: Date,
