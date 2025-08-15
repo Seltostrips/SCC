@@ -160,7 +160,7 @@ router.get('/me', [auth, checkDBConnection], async (req, res) => {
   }
 });
 
-// Get all users (admin only) - NEW ENDPOINT
+// Get all users (admin only) - UPDATED ENDPOINT
 router.get('/all-users', [auth, checkDBConnection], async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -169,6 +169,7 @@ router.get('/all-users', [auth, checkDBConnection], async (req, res) => {
 
     const users = await User.find({})
       .select('-password')
+      .populate('assignedClients', 'name company uniqueCode')
       .sort({ createdAt: -1 });
 
     res.json(users);
@@ -177,7 +178,6 @@ router.get('/all-users', [auth, checkDBConnection], async (req, res) => {
     res.status(500).send('Server error');
   }
 });
-
 // Get login logs (admin only) - NEW ENDPOINT
 router.get('/login-logs', [auth, checkDBConnection], async (req, res) => {
   try {
@@ -310,4 +310,5 @@ router.post('/approve/:userId', [auth, checkDBConnection], async (req, res) => {
 });
 
 module.exports = router;
+
 
