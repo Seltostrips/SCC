@@ -106,14 +106,24 @@ router.get('/pending', [auth, checkDBConnection], async (req, res) => {
   }
 });
 
-// Get unique codes for dropdown (staff only)
+// Get unique codes for dropdown (staff only) - UPDATED ENDPOINT
 router.get('/unique-codes', [auth, checkDBConnection], async (req, res) => {
   try {
     if (req.user.role !== 'staff') {
       return res.status(403).json({ message: 'Not authorized' });
     }
 
-    const clients = await User.find({ role: 'client', isApproved: true })
+    // Get staff user with assigned clients
+    const staffUser = await User.findById(req.user.id).populate('assignedClients');
+    
+    let query = { role: 'client', isApproved: true };
+    
+    // If staff has assigned clients, filter to only show those
+    if (staffUser.assignedClients && staffUser.assignedClients.length > 0) {
+      query._id = { $in: staffUser.assignedClients.map(client => client._id) };
+    }
+
+    const clients = await User.find(query)
       .select('uniqueCode company location.pincode');
 
     res.json(clients);
@@ -240,3 +250,4 @@ router.get('/', [auth, checkDBConnection], async (req, res) => {
 });
 
 module.exports = router;
+
