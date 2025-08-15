@@ -1,7 +1,7 @@
 // File: routes/auth.js
 
 const express = require('express');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User'); // Adjust the path as necessary
 const { checkDBConnection } = require('../middleware/db'); // Adjust the path as necessary
@@ -181,3 +181,4 @@ router.post('/approve/:userId', [auth, checkDBConnection], async (req, res) => {
 });
 
 module.exports = router;
+
